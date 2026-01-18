@@ -16,38 +16,43 @@
         .product-card:hover { transform: translateY(-8px); }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         .animate-fade { animation: fadeIn 0.4s ease-out forwards; }
+        
+        /* Custom Scrollbar for better look */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #F0FDF4; }
+        ::-webkit-scrollbar-thumb { background: #059669; border-radius: 10px; }
     </style>
 </head>
-<body class="bg-[#FDF8F5] text-[#3E2723] min-h-screen">
+<body class="bg-[#F0FDF4] text-[#064E3B] min-h-screen">
 
-   <nav class="sticky top-0 z-40 bg-[#FDF8F5]/80 backdrop-blur-md border-b border-[#F5EBE0] p-4">
+   <nav class="sticky top-0 z-40 bg-[#F0FDF4]/80 backdrop-blur-md border-b border-[#DCFCE7] p-4">
     <div class="max-w-7xl mx-auto flex justify-between items-center">
-        <h1 id="siteName" class="text-2xl font-black italic text-[#5D4037] tracking-tighter">PMM Welfare.</h1>
+        <h1 id="siteName" class="text-2xl font-black italic text-[#059669] tracking-tighter">PMM Welfare.</h1>
         
         <div class="flex gap-4 items-center">
-            <button onclick="location.href='staff-orders.html'" class="bg-white p-3 rounded-2xl shadow-sm border border-[#F5EBE0] text-[#5D4037] hover:bg-[#5D4037] hover:text-white transition-all flex items-center gap-2 group">
+            <button onclick="location.href='staff-orders.html'" class="bg-white p-3 rounded-2xl shadow-sm border border-[#DCFCE7] text-[#059669] hover:bg-[#059669] hover:text-white transition-all flex items-center gap-2 group">
                 <i data-lucide="shopping-bag" class="w-5 h-5"></i>
                 <span class="text-[10px] font-black uppercase hidden md:block">My Orders</span>
             </button>
 
-            <div class="flex items-center gap-3 pl-4 border-l border-[#F5EBE0]">
+            <div class="flex items-center gap-3 pl-4 border-l border-[#DCFCE7]">
                 <div class="text-right hidden sm:block">
-                    <p id="displayStaffName" class="font-bold text-xs">Staff User</p>
-                    <p id="displayPosition" class="text-[9px] text-[#8D6E63] font-black uppercase tracking-widest italic">Role</p>
+                    <p id="displayStaffName" class="font-bold text-xs text-[#064E3B]">Staff User</p>
+                    <p id="displayPosition" class="text-[9px] text-[#059669] font-black uppercase tracking-widest italic">Role</p>
                 </div>
-                <button onclick="logout()" class="p-2 text-red-400 hover:text-red-600 transition"><i data-lucide="log-out" class="w-5 h-5"></i></button>
+                <button onclick="logout()" class="p-2 text-red-500 hover:text-red-700 transition"><i data-lucide="log-out" class="w-5 h-5"></i></button>
             </div>
         </div>
     </div>
 </nav>
 
-  <header class="max-w-7xl mx-auto px-6 mt-8 mb-12">
+ <header class="max-w-7xl mx-auto px-6 mt-8 mb-12">
     <div id="promoBanner" class="w-full h-64 md:h-80 rounded-[3.5rem] relative overflow-hidden flex items-center p-8 md:p-16 shadow-2xl">
+        
         <img id="bannerImgMobile" class="absolute inset-0 w-full h-full object-cover md:hidden" src="" alt="">
         <img id="bannerImgDesktop" class="absolute inset-0 w-full h-full object-cover hidden md:block" src="" alt="">
         
         <div class="relative z-10 max-w-lg">
-          
             <h2 id="bannerTitle" class="text-white text-4xl md:text-6xl font-black mb-3 leading-none drop-shadow-lg"></h2>
             <p id="bannerSub" class="text-white text-lg font-bold drop-shadow-md"></p>
         </div>
@@ -58,25 +63,25 @@
         <div class="flex flex-col md:flex-row gap-4 mb-12 items-center justify-between">
             <div class="w-full md:max-w-md relative group">
                 <input type="text" id="searchInput" placeholder="Search for items..." 
-                    class="w-full p-5 pl-14 rounded-[2rem] bg-white border border-[#F5EBE0] focus:outline-none focus:ring-4 focus:ring-[#5D4037]/5 transition-all font-bold text-[#5D4037] shadow-sm group-hover:shadow-md">
-                <i data-lucide="search" class="absolute left-6 top-5 w-5 h-5 text-[#8D6E63]"></i>
+                    class="w-full p-5 pl-14 rounded-[2rem] bg-white border border-[#DCFCE7] focus:outline-none focus:ring-4 focus:ring-[#059669]/10 transition-all font-bold text-[#064E3B] shadow-sm group-hover:shadow-md">
+                <i data-lucide="search" class="absolute left-6 top-5 w-5 h-5 text-[#059669]"></i>
             </div>
             
             <div class="flex items-center gap-3 w-full md:w-auto">
-                <select id="priceFilter" class="flex-1 md:w-48 p-5 rounded-[2rem] bg-white border border-[#F5EBE0] focus:outline-none font-bold text-sm text-[#5D4037] shadow-sm appearance-none cursor-pointer">
+                <select id="priceFilter" class="flex-1 md:w-48 p-5 rounded-[2rem] bg-white border border-[#DCFCE7] focus:outline-none font-bold text-sm text-[#064E3B] shadow-sm appearance-none cursor-pointer">
                     <option value="all">Sort by Default</option>
                     <option value="low">Price: Low to High</option>
                     <option value="high">Price: High to Low</option>
                 </select>
-                <div class="bg-white p-5 rounded-[2rem] border border-[#F5EBE0] shadow-sm text-[#8D6E63]">
+                <div class="bg-white p-5 rounded-[2rem] border border-[#DCFCE7] shadow-sm text-[#059669]">
                     <i data-lucide="sliders-horizontal" class="w-5 h-5"></i>
                 </div>
             </div>
         </div>
 
         <div class="flex items-center gap-4 mb-8">
-            <h3 class="text-2xl font-black text-[#5D4037]">Available Items</h3>
-            <div class="h-[2px] flex-1 bg-gradient-to-r from-[#F5EBE0] to-transparent"></div>
+            <h3 class="text-2xl font-black text-[#064E3B]">Available Items</h3>
+            <div class="h-[2px] flex-1 bg-gradient-to-r from-[#DCFCE7] to-transparent"></div>
         </div>
         
         <div id="productGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
@@ -87,11 +92,11 @@
         </div>
 
         <div id="noResults" class="hidden text-center py-20">
-            <div class="bg-white w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm border border-[#F5EBE0]">
-                <i data-lucide="search-x" class="text-[#8D6E63] w-10 h-10"></i>
+            <div class="bg-white w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm border border-[#DCFCE7]">
+                <i data-lucide="search-x" class="text-[#059669] w-10 h-10"></i>
             </div>
-            <h4 class="text-xl font-bold text-[#5D4037]">No items found</h4>
-            <p class="text-[#8D6E63]">Try adjusting your search or filters.</p>
+            <h4 class="text-xl font-bold text-[#064E3B]">No items found</h4>
+            <p class="text-[#059669]">Try adjusting your search or filters.</p>
         </div>
     </main>
 
@@ -189,35 +194,35 @@
                             const isLimitReached = availableQty <= 0;
 
                             grid.innerHTML += `
-                                <div class="product-card animate-fade group bg-white p-5 rounded-[2.5rem] border border-[#F5EBE0] hover:shadow-2xl hover:border-[#5D4037]/20 transition-all duration-500 cursor-pointer relative" 
+                                <div class="product-card animate-fade group bg-white p-5 rounded-[2.5rem] border border-[#DCFCE7] hover:shadow-2xl hover:border-[#059669]/20 transition-all duration-500 cursor-pointer relative" 
                                      onclick="window.location.href='product-details.html?id=${itemId}'">
                                     
-                                    <div class="bg-[#FDF8F5] rounded-[2rem] h-52 mb-5 flex items-center justify-center relative overflow-hidden">
+                                    <div class="bg-[#F0FDF4] rounded-[2rem] h-52 mb-5 flex items-center justify-center relative overflow-hidden">
                                         <img src="${imgSource}" alt="${item.name}" class="w-full h-full object-cover group-hover:scale-110 transition duration-700">
                                         <div class="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
                                         
                                         <div class="absolute top-4 left-4">
-                                            <span class="bg-white/90 backdrop-blur-md text-[#5D4037] text-[10px] font-black px-3 py-1.5 rounded-xl shadow-sm border border-white">
+                                            <span class="bg-white/90 backdrop-blur-md text-[#064E3B] text-[10px] font-black px-3 py-1.5 rounded-xl shadow-sm border border-white">
                                                 ${item.stock <= 5 ? 'LOW STOCK' : 'IN STOCK'}
                                             </span>
                                         </div>
 
-                                        <div class="absolute top-4 right-4 px-3 py-1.5 rounded-xl text-[9px] font-black text-white shadow-lg backdrop-blur-md border border-white/20 ${isLimitReached ? 'bg-red-500' : 'bg-green-600'}">
+                                        <div class="absolute top-4 right-4 px-3 py-1.5 rounded-xl text-[9px] font-black text-white shadow-lg backdrop-blur-md border border-white/20 ${isLimitReached ? 'bg-red-500' : 'bg-[#059669]'}">
                                             ${isLimitReached ? 'LIMIT REACHED' : `AVAIL: ${availableQty}`}
                                         </div>
                                     </div>
 
                                     <div class="px-2">
-                                        <h4 class="font-black text-lg text-[#5D4037] truncate">${item.name}</h4>
+                                        <h4 class="font-black text-lg text-[#064E3B] truncate">${item.name}</h4>
                                         <div class="flex justify-between items-end mt-4">
                                             <div>
-                                                <p class="text-[9px] text-[#8D6E63] font-black uppercase tracking-widest mb-1">Welfare Price</p>
+                                                <p class="text-[9px] text-[#059669] font-black uppercase tracking-widest mb-1">Welfare Price</p>
                                                 <div class="flex items-baseline gap-2">
-                                                    <p class="text-[#5D4037] font-black text-2xl leading-none italic">Rs.${item.welfarePrice}</p>
-                                                    <p class="text-[#8D6E63] text-xs line-through opacity-50 font-bold">Rs.${item.mrpPrice}</p>
+                                                    <p class="text-[#064E3B] font-black text-2xl leading-none italic">Rs.${item.welfarePrice}</p>
+                                                    <p class="text-[#059669] text-xs line-through opacity-40 font-bold">Rs.${item.mrpPrice}</p>
                                                 </div>
                                             </div>
-                                            <div class="bg-[#5D4037] text-white p-3 rounded-2xl group-hover:bg-[#3E2723] transition-colors shadow-lg">
+                                            <div class="bg-[#059669] text-white p-3 rounded-2xl group-hover:bg-[#064E3B] transition-colors shadow-lg">
                                                 <i data-lucide="chevron-right" class="w-5 h-5"></i>
                                             </div>
                                         </div>

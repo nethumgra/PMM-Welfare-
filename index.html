@@ -5,23 +5,38 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>InventoryX - Login</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom smooth transition for the whole page */
+        body {
+            transition: background-color 0.5s ease;
+        }
+    </style>
 </head>
-<body class="bg-[#FDF8F5] flex items-center justify-center min-h-screen">
-    <div class="max-w-md w-full p-8 bg-white rounded-[2.5rem] shadow-2xl border border-[#E7D6CC] text-center">
-        <div class="w-20 h-20 bg-[#5D4037] rounded-3xl mx-auto mb-6 flex items-center justify-center shadow-lg rotate-3">
+<body class="bg-[#F0FDF4] flex items-center justify-center min-h-screen">
+    
+    <div class="max-w-md w-full p-8 bg-white rounded-[2.5rem] shadow-2xl border border-[#DCFCE7] text-center">
+        <div class="w-20 h-20 bg-[#059669] rounded-3xl mx-auto mb-6 flex items-center justify-center shadow-lg rotate-3">
             <span class="text-white text-3xl font-bold italic">X</span>
         </div>
-        <h1 id="loginSiteName" class="text-3xl font-bold text-[#3E2723] mb-2">InventoryX</h1>
-        <p class="text-[#8D6E63] mb-8">Enter your Staff ID to continue</p>
+
+        <h1 id="loginSiteName" class="text-3xl font-bold text-[#064E3B] mb-2">PMM Welfare Shop</h1>
+        <p class="text-[#059669] mb-8 font-medium">Enter your Staff ID to continue</p>
         
         <div class="space-y-4">
             <input type="text" id="staffIdInput" placeholder="Staff ID (Ex: STF-001)" 
-                class="w-full p-4 rounded-2xl bg-[#F5EBE0] border-2 border-transparent focus:border-[#5D4037] focus:outline-none text-center font-bold text-[#3E2723] transition">
-            <button id="enterBtn" class="w-full bg-[#5D4037] text-white py-4 rounded-2xl font-bold text-lg hover:bg-[#3E2723] transition shadow-xl shadow-brown-200">
+                class="w-full p-4 rounded-2xl bg-[#ECFDF5] border-2 border-transparent focus:border-[#059669] focus:outline-none text-center font-bold text-[#064E3B] placeholder-emerald-300 transition-all">
+
+            <div class="relative group text-left">
+                <input type="password" id="staffPasswordInput" placeholder="Enter Password" 
+                    class="w-full p-4 rounded-2xl bg-[#ECFDF5] border-2 border-transparent focus:border-[#059669] focus:outline-none text-center font-bold text-[#064E3B] placeholder-emerald-300 transition-all">
+            </div>
+
+            <button id="enterBtn" class="w-full bg-[#059669] text-white py-4 rounded-2xl font-bold text-lg hover:bg-[#047857] active:scale-95 transition-all shadow-xl shadow-emerald-100">
                 Enter Store
             </button>
         </div>
-        <p id="errorMsg" class="mt-4 text-red-500 text-sm hidden">Invalid ID. Please contact Admin.</p>
+
+        <p id="errorMsg" class="mt-4 text-red-500 text-sm font-semibold hidden">Invalid ID. Please contact Admin.</p>
     </div>
 
     <script type="module">
@@ -60,10 +75,9 @@
             if (!querySnapshot.empty) {
                 const userData = querySnapshot.docs[0].data();
                 
-                // --- ME TIKA SAVE WENNA ONI ---
+                // --- Save session data ---
                 sessionStorage.setItem('staffName', userData.name);
                 sessionStorage.setItem('staffId', inputId);
-                // Meka thamayi products page ekata role eka kiyala denne
                 sessionStorage.setItem('userPosition', userData.position); 
                 
                 window.location.href = "products.html";
