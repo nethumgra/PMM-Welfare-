@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>InventoryX - Login</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-[#FDF8F5] flex items-center justify-center min-h-screen">
+    <div class="max-w-md w-full p-8 bg-white rounded-[2.5rem] shadow-2xl border border-[#E7D6CC] text-center">
+        <div class="w-20 h-20 bg-[#5D4037] rounded-3xl mx-auto mb-6 flex items-center justify-center shadow-lg rotate-3">
+            <span class="text-white text-3xl font-bold italic">X</span>
+        </div>
+        <h1 id="loginSiteName" class="text-3xl font-bold text-[#3E2723] mb-2">InventoryX</h1>
+        <p class="text-[#8D6E63] mb-8">Enter your Staff ID to continue</p>
+        
+        <div class="space-y-4">
+            <input type="text" id="staffIdInput" placeholder="Staff ID (Ex: STF-001)" 
+                class="w-full p-4 rounded-2xl bg-[#F5EBE0] border-2 border-transparent focus:border-[#5D4037] focus:outline-none text-center font-bold text-[#3E2723] transition">
+            <button id="enterBtn" class="w-full bg-[#5D4037] text-white py-4 rounded-2xl font-bold text-lg hover:bg-[#3E2723] transition shadow-xl shadow-brown-200">
+                Enter Store
+            </button>
+        </div>
+        <p id="errorMsg" class="mt-4 text-red-500 text-sm hidden">Invalid ID. Please contact Admin.</p>
+    </div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, collection, query, where, getDocs, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyB3jlpc_vbUydda2XpDj5Xd1J8kVei9v8U",
+            authDomain: "inventory-c3cca.firebaseapp.com",
+            projectId: "inventory-c3cca",
+            storageBucket: "inventory-c3cca.firebasestorage.app",
+            messagingSenderId: "396140403894",
+            appId: "1:396140403894:web:316617b8e390f8b0575a17",
+            measurementId: "G-YK5X3Z6HER"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // Site Name Dynamic Update
+        onSnapshot(doc(db, "settings", "site"), (doc) => {
+            if (doc.exists()) {
+                document.getElementById('loginSiteName').innerText = doc.data().name;
+            }
+        });
+
+        document.getElementById('enterBtn').addEventListener('click', async () => {
+            const inputId = document.getElementById('staffIdInput').value;
+            const errorMsg = document.getElementById('errorMsg');
+
+            if(!inputId) return;
+
+            const q = query(collection(db, "users"), where("staffId", "==", inputId));
+            const querySnapshot = await getDocs(q);
+
+            if (!querySnapshot.empty) {
+                const userData = querySnapshot.docs[0].data();
+                
+                // --- ME TIKA SAVE WENNA ONI ---
+                sessionStorage.setItem('staffName', userData.name);
+                sessionStorage.setItem('staffId', inputId);
+                // Meka thamayi products page ekata role eka kiyala denne
+                sessionStorage.setItem('userPosition', userData.position); 
+                
+                window.location.href = "products.html";
+            } else {
+                errorMsg.classList.remove('hidden');
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Product Details - PMM Welfare Shop</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    
+    <style>
+        @keyframes scaleIn { 0% { transform: scale(0); } 100% { transform: scale(1); } }
+        @keyframes drawCheck { 0% { stroke-dashoffset: 48; } 100% { stroke-dashoffset: 0; } }
+        .animate-scale { animation: scaleIn 0.5s ease-out forwards; }
+        .animate-check { stroke-dasharray: 48; stroke-dashoffset: 48; animation: drawCheck 0.6s 0.3s ease-out forwards; }
+    </style>
+
+    <script>
+        if (!sessionStorage.getItem('staffId')) { window.location.href = "index.html"; }
+    </script>
+</head>
+<body class="bg-[#FDF8F5] text-[#3E2723] font-sans">
+
+    <div id="successOverlay" class="fixed inset-0 bg-[#5D4037]/95 z-[100] hidden flex items-center justify-center p-6 backdrop-blur-md">
+        <div class="bg-white w-full max-w-sm rounded-[3.5rem] p-10 text-center shadow-2xl animate-scale border border-white/20">
+            <div class="w-24 h-24 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                <svg class="w-12 h-12 text-green-600" fill="none" stroke="currentColor" stroke-width="4" viewBox="0 0 24 24">
+                    <path class="animate-check" stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path>
+                </svg>
+            </div>
+            <h2 class="text-2xl font-black mb-2 text-[#5D4037]">Order Pending!</h2>
+            <p class="text-[#8D6E63] text-sm mb-8 font-medium">Your order has been sent for approval. Please collect it once dispatched.</p>
+            
+            <div class="space-y-3">
+                <button onclick="generateInvoice()" class="w-full bg-[#5D4037] text-white py-5 rounded-3xl font-black flex items-center justify-center gap-2 hover:bg-[#3E2723] transition shadow-lg">
+                    <i data-lucide="download"></i> Download Receipt
+                </button>
+                <button onclick="location.href='products.html'" class="w-full border-2 border-[#E7D6CC] text-[#5D4037] py-4 rounded-3xl font-black hover:bg-[#FDF8F5] transition">
+                    Return to Store
+                </button>
+            </div>
+        </div>
+    </div>
+
+   <nav class="p-6 flex justify-between items-center max-w-7xl mx-auto">
+    <h1 class="text-2xl font-black italic text-[#5D4037] cursor-pointer" onclick="location.href='products.html'">PMM Welfare.</h1>
+    
+    <div class="flex gap-3 items-center">
+        <button onclick="location.href='staff-orders.html'" class="bg-white p-3 rounded-2xl shadow-sm border border-[#E7D6CC] text-[#5D4037] hover:bg-[#FDF8F5] transition flex items-center gap-2 group">
+            <i data-lucide="user-circle" class="w-6 h-6 group-hover:scale-110 transition"></i>
+        </button>
+
+        <div class="text-right">
+            <p id="displayStaffName" class="font-bold text-sm">Staff User</p>
+            <p id="displayPosition" class="text-[10px] text-[#8D6E63] font-black uppercase tracking-widest">Role</p>
+        </div>
+        
+        <button onclick="location.href='products.html'" class="bg-white p-3 rounded-2xl shadow-sm border border-[#F5EBE0] text-[#5D4037] hover:bg-[#FDF8F5] transition">
+            <i data-lucide="arrow-left" class="w-6 h-6"></i>
+        </button>
+    </div>
+</nav>
+    <main class="max-w-7xl mx-auto px-6 py-10">
+        <div id="budgetInfo" class="mb-6 p-4 bg-white border border-[#F5EBE0] rounded-3xl flex flex-wrap justify-between items-center gap-4 shadow-sm">
+            <div>
+                <p class="text-[10px] font-black text-[#8D6E63] uppercase tracking-widest">Monthly Budget Remaining</p>
+                <p class="text-xl font-black text-[#5D4037]" id="remainingBudgetDisplay">Calculating...</p>
+            </div>
+            <div class="h-10 w-[1px] bg-[#F5EBE0] hidden md:block"></div>
+            <div>
+                <p class="text-[10px] font-black text-[#8D6E63] uppercase tracking-widest">Welfare Saving on this item</p>
+                <p class="text-xl font-black text-green-600" id="savingDisplay">Rs. 0.00</p>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center bg-white p-8 md:p-12 rounded-[4rem] shadow-xl border border-[#F5EBE0]">
+            <div class="relative group">
+                <div class="bg-[#FDF8F5] rounded-[3rem] overflow-hidden aspect-square flex items-center justify-center border border-[#F5EBE0] shadow-inner">
+                    <img id="productImg" src="" alt="Product" class="w-full h-full object-cover transition duration-700 group-hover:scale-105">
+                </div>
+            </div>
+
+            <div class="space-y-8">
+                <div>
+                    <span id="roleBadge" class="bg-[#F5EBE0] text-[#5D4037] px-5 py-2 rounded-full text-[10px] font-black uppercase tracking-widest border border-white">Loading...</span>
+                    <h2 id="productName" class="text-4xl font-black mt-5 leading-tight">Loading...</h2>
+                    <div class="mt-2 flex items-baseline gap-3">
+                        <p id="welfarePriceDisplay" class="text-3xl font-black text-[#5D4037] italic">Rs. 0.00</p>
+                        <p id="mrpPriceDisplay" class="text-sm text-[#8D6E63] line-through font-bold">MRP: Rs. 0.00</p>
+                    </div>
+                </div>
+
+                <div class="p-6 bg-green-50 rounded-[2.5rem] border border-green-100">
+                    <h4 class="font-bold text-xs flex items-center gap-2 uppercase text-green-700 mb-2">
+                        <i data-lucide="piggy-bank" class="w-4 h-4"></i> Welfare Benefit
+                    </h4>
+                    <p class="text-xs text-green-800 font-medium leading-relaxed">
+                        By purchasing this item through the welfare shop, you are saving <span id="unitSaving" class="font-black">Rs. 0.00</span> per unit.
+                    </p>
+                </div>
+
+                <div class="space-y-4">
+                    <div class="flex items-center gap-6">
+                        <div class="flex items-center bg-[#FDF8F5] border border-[#F5EBE0] rounded-3xl p-2 shadow-sm">
+                            <button onclick="changeQty(-1)" class="w-12 h-12 bg-white rounded-2xl shadow-sm flex items-center justify-center hover:bg-[#F5EBE0] transition"><i data-lucide="minus"></i></button>
+                            <input type="number" id="orderQty" value="1" class="w-16 text-center bg-transparent font-black text-2xl focus:outline-none" readonly>
+                            <button onclick="changeQty(1)" class="w-12 h-12 bg-white rounded-2xl shadow-sm flex items-center justify-center hover:bg-[#F5EBE0] transition"><i data-lucide="plus"></i></button>
+                        </div>
+                        <div>
+                            <p class="text-[10px] font-black text-[#8D6E63] uppercase tracking-widest">Qty Limit (Personal)</p>
+                            <p class="text-xl font-black text-[#5D4037]"><span id="personalQtyLeft">0</span> / <span id="totalRoleLimit">0</span></p>
+                        </div>
+                    </div>
+                    <p class="text-[10px] text-red-500 font-bold uppercase" id="stockAlert"></p>
+                </div>
+
+                <button id="buyBtn" class="w-full bg-[#5D4037] text-white p-6 rounded-[2.5rem] font-black text-xl hover:bg-[#3E2723] transition-all transform active:scale-95 shadow-2xl flex items-center justify-center gap-3">
+                    <i data-lucide="shopping-bag"></i> Place Order
+                </button>
+            </div>
+        </div>
+    </main>
+
+   <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+    import { getFirestore, doc, getDoc, getDocs, collection, addDoc, query, where, updateDoc, increment } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+        apiKey: "AIzaSyB3jlpc_vbUydda2XpDj5Xd1J8kVei9v8U",
+        authDomain: "inventory-c3cca.firebaseapp.com",
+        projectId: "inventory-c3cca",
+        storageBucket: "inventory-c3cca.firebasestorage.app",
+        messagingSenderId: "396140403894",
+        appId: "1:396140403894:web:316617b8e390f8b0575a17",
+        measurementId: "G-YK5X3Z6HER"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const productId = urlParams.get('id');
+    const staffId = sessionStorage.getItem('staffId');
+    const userPosition = sessionStorage.getItem('userPosition');
+    const staffName = sessionStorage.getItem('staffName');
+
+    let productData = null;
+    let roleBudgetLimit = 0;
+    let finalMaxQtyAllowed = 0;
+    let currentMonthSpent = 0;
+    let lastOrderId = "";
+
+  async function initPage() {
+    if (!productId) { window.location.href = "products.html"; return; }
+    
+    document.getElementById('displayStaffName').innerText = staffName;
+    document.getElementById('displayPosition').innerText = userPosition;
+
+    // 1. Get Product Details
+    const pDoc = await getDoc(doc(db, "items", productId));
+    if (!pDoc.exists()) return;
+    productData = pDoc.data();
+    
+    // 2. Get Role Monthly Spend Limit (Case-insensitive check)
+    const rolesSnap = await getDocs(collection(db, "roles"));
+    if(!rolesSnap.empty) {
+        const matchingRole = rolesSnap.docs.find(doc => 
+            doc.data().name.toLowerCase().trim() === userPosition.toLowerCase().trim()
+        );
+        roleBudgetLimit = matchingRole ? matchingRole.data().monthlyLimit : 0;
+    }
+
+    // 3. Calculate Current Month Spending & Qty for this item
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    
+    const qOrders = query(collection(db, "orders"), where("staffId", "==", staffId), where("createdAt", ">=", startOfMonth));
+    const orderSnap = await getDocs(qOrders);
+    
+    let itemAlreadyBoughtQty = 0;
+    currentMonthSpent = 0; // Reset current month spending
+    orderSnap.forEach(o => {
+        const d = o.data();
+        currentMonthSpent += d.total || 0;
+        if(d.itemId === productId) itemAlreadyBoughtQty += d.qty;
+    });
+
+    // 4. Update UI & Limits (මෙහිදී අකුරු පටලැවිල්ල මගහැරීමට Case-insensitive logic එක දමා ඇත)
+    let qtyLimitForRole = 0;
+    if (productData.limits) {
+        const roleKey = Object.keys(productData.limits).find(k => 
+            k.toLowerCase().trim() === userPosition.toLowerCase().trim()
+        );
+        qtyLimitForRole = roleKey ? productData.limits[roleKey] : 0;
+    }
+
+    // ඉතිරිව ඇති ප්‍රමාණය ගණනය කිරීම
+    finalMaxQtyAllowed = Math.min(qtyLimitForRole - itemAlreadyBoughtQty, productData.stock);
+    
+    document.getElementById('productName').innerText = productData.name;
+    document.getElementById('welfarePriceDisplay').innerText = "Rs. " + productData.welfarePrice;
+    document.getElementById('mrpPriceDisplay').innerText = "MRP: Rs. " + productData.mrpPrice;
+    document.getElementById('productImg').src = productData.imageUrl;
+    document.getElementById('unitSaving').innerText = "Rs. " + (productData.mrpPrice - productData.welfarePrice).toFixed(2);
+    document.getElementById('savingDisplay').innerText = "Rs. " + (productData.mrpPrice - productData.welfarePrice).toFixed(2);
+    document.getElementById('remainingBudgetDisplay').innerText = "Rs. " + (roleBudgetLimit - currentMonthSpent).toLocaleString();
+    document.getElementById('personalQtyLeft').innerText = finalMaxQtyAllowed;
+    document.getElementById('totalRoleLimit').innerText = qtyLimitForRole;
+    document.getElementById('roleBadge').innerText = userPosition + " Quota";
+
+    if (productData.stock <= 0) {
+        document.getElementById('stockAlert').innerText = "OUT OF STOCK";
+        document.getElementById('buyBtn').disabled = true;
+        document.getElementById('buyBtn').innerText = "Out of Stock";
+    } else if (finalMaxQtyAllowed <= 0) {
+        document.getElementById('buyBtn').disabled = true;
+        document.getElementById('buyBtn').innerText = "Limit Reached";
+        document.getElementById('stockAlert').innerText = "YOU HAVE REACHED YOUR MONTHLY LIMIT";
+    }
+
+    lucide.createIcons();
+}
+
+window.changeQty = (val) => {
+    const inp = document.getElementById('orderQty');
+    let v = parseInt(inp.value) + val;
+    // v එක 1 ට සමාන හෝ වැඩි විය යුතු අතර අවසර දී ඇති උපරිම ලිමිට් එකට සමාන හෝ අඩු විය යුතුය
+    if(v >= 1 && v <= finalMaxQtyAllowed) {
+        inp.value = v;
+    } else if (v > finalMaxQtyAllowed) {
+        alert("ඔබේ මාසික ලිමිට් එක ඉක්මවා යා නොහැක! (Limit: " + finalMaxQtyAllowed + ")");
+    }
+};
+
+    document.getElementById('buyBtn').addEventListener('click', async () => {
+        const qty = parseInt(document.getElementById('orderQty').value);
+        const totalCost = productData.welfarePrice * qty;
+
+        // Check Budget Limit
+        if (currentMonthSpent + totalCost > roleBudgetLimit) {
+            alert("Order Failed: This purchase exceeds your monthly budget of Rs. " + roleBudgetLimit);
+            return;
+        }
+
+        const btn = document.getElementById('buyBtn');
+        btn.disabled = true;
+        btn.innerText = "Processing...";
+
+        try {
+            const orderData = {
+                staffId, staffName, userPosition,
+                itemName: productData.name,
+                itemId: productId,
+                qty,
+                price: productData.welfarePrice,
+                total: totalCost,
+                mrpTotal: productData.mrpPrice * qty,
+                savings: (productData.mrpPrice - productData.welfarePrice) * qty,
+                status: "Pending",
+                createdAt: new Date()
+            };
+
+            // 1. Create Order Record
+            const oRef = await addDoc(collection(db, "orders"), orderData);
+            lastOrderId = oRef.id;
+
+            // 2. Subtract from Inventory (Stock Balance)
+            await updateDoc(doc(db, "items", productId), {
+                stock: increment(-qty)
+            });
+
+            // 3. Create Bin Card Log (Stock Out Log)
+            await addDoc(collection(db, "inventory_logs"), {
+                itemId: productId,
+                itemName: productData.name,
+                type: "OUT",
+                qty: qty,
+                balance: productData.stock - qty, // Calculating current balance after subtraction
+                createdAt: new Date()
+            });
+
+            document.getElementById('successOverlay').classList.remove('hidden');
+            lucide.createIcons();
+        } catch (e) {
+            alert("Error: " + e.message);
+            btn.disabled = false;
+            btn.innerText = "Place Order";
+        }
+    });
+
+    window.generateInvoice = () => {
+        const { jsPDF } = window.jspdf;
+        const doc = new jsPDF({ unit: 'mm', format: [100, 150] });
+        const qty = document.getElementById('orderQty').value;
+        const savings = (productData.mrpPrice - productData.welfarePrice) * qty;
+
+        doc.setFont("helvetica", "bold");
+        doc.text("PMM WELFARE SHOP", 50, 15, { align: "center" });
+        doc.setFontSize(8);
+        doc.text("------------------------------------------", 50, 20, { align: "center" });
+        
+        doc.setFontSize(10);
+        doc.text(`Order ID: #${lastOrderId.substring(0,8)}`, 10, 30);
+        doc.text(`Date: ${new Date().toLocaleDateString()}`, 10, 35);
+        doc.text(`Staff: ${staffName}`, 10, 45);
+        
+        doc.text("Item:", 10, 60);
+        doc.text(`${productData.name} x ${qty}`, 40, 60);
+        doc.text("Welfare Price:", 10, 70);
+        doc.text(`Rs. ${productData.welfarePrice * qty}`, 40, 70);
+        
+        doc.setTextColor(0, 128, 0);
+        doc.text("Total Savings:", 10, 85);
+        doc.text(`Rs. ${savings.toFixed(2)}`, 40, 85);
+        
+        doc.setTextColor(0, 0, 0);
+        doc.text("Status: PENDING APPROVAL", 50, 110, { align: "center" });
+        doc.save(`Receipt_${lastOrderId.substring(0,5)}.pdf`);
+    };
+
+    initPage();
+</script>
+</body>
+</html>

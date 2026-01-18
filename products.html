@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Store - PMM Welfare</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    
+    <script>
+        if (!sessionStorage.getItem('staffId')) {
+            window.location.href = "index.html";
+        }
+    </script>
+    <style>
+        .product-card:hover { transform: translateY(-8px); }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .animate-fade { animation: fadeIn 0.4s ease-out forwards; }
+    </style>
+</head>
+<body class="bg-[#FDF8F5] text-[#3E2723] min-h-screen">
+
+   <nav class="sticky top-0 z-40 bg-[#FDF8F5]/80 backdrop-blur-md border-b border-[#F5EBE0] p-4">
+    <div class="max-w-7xl mx-auto flex justify-between items-center">
+        <h1 id="siteName" class="text-2xl font-black italic text-[#5D4037] tracking-tighter">PMM Welfare.</h1>
+        
+        <div class="flex gap-4 items-center">
+            <button onclick="location.href='staff-orders.html'" class="bg-white p-3 rounded-2xl shadow-sm border border-[#F5EBE0] text-[#5D4037] hover:bg-[#5D4037] hover:text-white transition-all flex items-center gap-2 group">
+                <i data-lucide="shopping-bag" class="w-5 h-5"></i>
+                <span class="text-[10px] font-black uppercase hidden md:block">My Orders</span>
+            </button>
+
+            <div class="flex items-center gap-3 pl-4 border-l border-[#F5EBE0]">
+                <div class="text-right hidden sm:block">
+                    <p id="displayStaffName" class="font-bold text-xs">Staff User</p>
+                    <p id="displayPosition" class="text-[9px] text-[#8D6E63] font-black uppercase tracking-widest italic">Role</p>
+                </div>
+                <button onclick="logout()" class="p-2 text-red-400 hover:text-red-600 transition"><i data-lucide="log-out" class="w-5 h-5"></i></button>
+            </div>
+        </div>
+    </div>
+</nav>
+
+  <header class="max-w-7xl mx-auto px-6 mt-8 mb-12">
+    <div id="promoBanner" class="w-full h-64 md:h-80 rounded-[3.5rem] relative overflow-hidden flex items-center p-8 md:p-16 shadow-2xl">
+        <img id="bannerImgMobile" class="absolute inset-0 w-full h-full object-cover md:hidden" src="" alt="">
+        <img id="bannerImgDesktop" class="absolute inset-0 w-full h-full object-cover hidden md:block" src="" alt="">
+        
+        <div class="relative z-10 max-w-lg">
+          
+            <h2 id="bannerTitle" class="text-white text-4xl md:text-6xl font-black mb-3 leading-none drop-shadow-lg"></h2>
+            <p id="bannerSub" class="text-white text-lg font-bold drop-shadow-md"></p>
+        </div>
+    </div>
+</header>
+
+    <main class="max-w-7xl mx-auto px-6 pb-24">
+        <div class="flex flex-col md:flex-row gap-4 mb-12 items-center justify-between">
+            <div class="w-full md:max-w-md relative group">
+                <input type="text" id="searchInput" placeholder="Search for items..." 
+                    class="w-full p-5 pl-14 rounded-[2rem] bg-white border border-[#F5EBE0] focus:outline-none focus:ring-4 focus:ring-[#5D4037]/5 transition-all font-bold text-[#5D4037] shadow-sm group-hover:shadow-md">
+                <i data-lucide="search" class="absolute left-6 top-5 w-5 h-5 text-[#8D6E63]"></i>
+            </div>
+            
+            <div class="flex items-center gap-3 w-full md:w-auto">
+                <select id="priceFilter" class="flex-1 md:w-48 p-5 rounded-[2rem] bg-white border border-[#F5EBE0] focus:outline-none font-bold text-sm text-[#5D4037] shadow-sm appearance-none cursor-pointer">
+                    <option value="all">Sort by Default</option>
+                    <option value="low">Price: Low to High</option>
+                    <option value="high">Price: High to Low</option>
+                </select>
+                <div class="bg-white p-5 rounded-[2rem] border border-[#F5EBE0] shadow-sm text-[#8D6E63]">
+                    <i data-lucide="sliders-horizontal" class="w-5 h-5"></i>
+                </div>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-4 mb-8">
+            <h3 class="text-2xl font-black text-[#5D4037]">Available Items</h3>
+            <div class="h-[2px] flex-1 bg-gradient-to-r from-[#F5EBE0] to-transparent"></div>
+        </div>
+        
+        <div id="productGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+            <div class="bg-white/50 h-80 rounded-[2.5rem] animate-pulse"></div>
+            <div class="bg-white/50 h-80 rounded-[2.5rem] animate-pulse"></div>
+            <div class="bg-white/50 h-80 rounded-[2.5rem] animate-pulse"></div>
+            <div class="bg-white/50 h-80 rounded-[2.5rem] animate-pulse"></div>
+        </div>
+
+        <div id="noResults" class="hidden text-center py-20">
+            <div class="bg-white w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm border border-[#F5EBE0]">
+                <i data-lucide="search-x" class="text-[#8D6E63] w-10 h-10"></i>
+            </div>
+            <h4 class="text-xl font-bold text-[#5D4037]">No items found</h4>
+            <p class="text-[#8D6E63]">Try adjusting your search or filters.</p>
+        </div>
+    </main>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, collection, onSnapshot, doc, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyB3jlpc_vbUydda2XpDj5Xd1J8kVei9v8U",
+            authDomain: "inventory-c3cca.firebaseapp.com",
+            projectId: "inventory-c3cca",
+            storageBucket: "inventory-c3cca.firebasestorage.app",
+            messagingSenderId: "396140403894",
+            appId: "1:396140403894:web:316617b8e390f8b0575a17",
+            measurementId: "G-YK5X3Z6HER"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        const staffId = sessionStorage.getItem('staffId');
+        const rawPosition = sessionStorage.getItem('userPosition') || "";
+        const userPosition = rawPosition.trim().toLowerCase();
+
+        document.getElementById('displayStaffName').innerText = sessionStorage.getItem('staffName');
+        document.getElementById('displayPosition').innerText = rawPosition;
+
+        onSnapshot(doc(db, "settings", "site"), (doc) => {
+            if (doc.exists()) document.getElementById('siteName').innerText = doc.data().name || "InventoryX";
+        });
+
+        onSnapshot(doc(db, "settings", "banner"), (doc) => {
+            if (doc.exists()) {
+                const data = doc.data();
+                document.getElementById('bannerTitle').innerText = data.title;
+                document.getElementById('bannerSub').innerText = data.subtitle;
+                document.getElementById('bannerImgMobile').src = data.mobileUrl;
+                document.getElementById('bannerImgDesktop').src = data.desktopUrl;
+            }
+        });
+
+        async function loadItemsWithRemainingQty() {
+            const grid = document.getElementById('productGrid');
+            const noResults = document.getElementById('noResults');
+            const now = new Date();
+            const firstDayOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+            const qOrders = query(
+                collection(db, "orders"),
+                where("staffId", "==", staffId),
+                where("createdAt", ">=", firstDayOfMonth)
+            );
+            
+            const orderSnap = await getDocs(qOrders);
+            const boughtMap = {};
+            orderSnap.forEach(o => {
+                const d = o.data();
+                if(d.status !== "Cancelled") {
+                    boughtMap[d.itemId] = (boughtMap[d.itemId] || 0) + d.qty;
+                }
+            });
+
+            onSnapshot(collection(db, "items"), (snap) => {
+                let allItems = [];
+                snap.forEach(d => allItems.push({ id: d.id, ...d.data() }));
+
+                const filterAndRender = () => {
+                    const searchVal = document.getElementById('searchInput').value.toLowerCase().trim();
+                    const sortVal = document.getElementById('priceFilter').value;
+
+                    let filteredItems = allItems.filter(item => 
+                        item.name.toLowerCase().includes(searchVal)
+                    );
+
+                    if (sortVal === "low") filteredItems.sort((a, b) => a.welfarePrice - b.welfarePrice);
+                    else if (sortVal === "high") filteredItems.sort((a, b) => b.welfarePrice - a.welfarePrice);
+
+                    grid.innerHTML = '';
+                    if (filteredItems.length === 0) {
+                        noResults.classList.remove('hidden');
+                    } else {
+                        noResults.classList.add('hidden');
+                        filteredItems.forEach(item => {
+                            const itemId = item.id;
+                            const imgSource = item.imageUrl || 'https://via.placeholder.com/300?text=No+Image';
+                            
+                            let totalLimit = 0;
+                            if (item.limits) {
+                               const roleKey = Object.keys(item.limits).find(k => k.toLowerCase().trim() === userPosition);
+                               totalLimit = roleKey ? item.limits[roleKey] : 0;
+                            }
+
+                            const alreadyBought = boughtMap[itemId] || 0;
+                            const availableQty = Math.max(0, totalLimit - alreadyBought);
+                            const isLimitReached = availableQty <= 0;
+
+                            grid.innerHTML += `
+                                <div class="product-card animate-fade group bg-white p-5 rounded-[2.5rem] border border-[#F5EBE0] hover:shadow-2xl hover:border-[#5D4037]/20 transition-all duration-500 cursor-pointer relative" 
+                                     onclick="window.location.href='product-details.html?id=${itemId}'">
+                                    
+                                    <div class="bg-[#FDF8F5] rounded-[2rem] h-52 mb-5 flex items-center justify-center relative overflow-hidden">
+                                        <img src="${imgSource}" alt="${item.name}" class="w-full h-full object-cover group-hover:scale-110 transition duration-700">
+                                        <div class="absolute inset-0 bg-black/5 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+                                        
+                                        <div class="absolute top-4 left-4">
+                                            <span class="bg-white/90 backdrop-blur-md text-[#5D4037] text-[10px] font-black px-3 py-1.5 rounded-xl shadow-sm border border-white">
+                                                ${item.stock <= 5 ? 'LOW STOCK' : 'IN STOCK'}
+                                            </span>
+                                        </div>
+
+                                        <div class="absolute top-4 right-4 px-3 py-1.5 rounded-xl text-[9px] font-black text-white shadow-lg backdrop-blur-md border border-white/20 ${isLimitReached ? 'bg-red-500' : 'bg-green-600'}">
+                                            ${isLimitReached ? 'LIMIT REACHED' : `AVAIL: ${availableQty}`}
+                                        </div>
+                                    </div>
+
+                                    <div class="px-2">
+                                        <h4 class="font-black text-lg text-[#5D4037] truncate">${item.name}</h4>
+                                        <div class="flex justify-between items-end mt-4">
+                                            <div>
+                                                <p class="text-[9px] text-[#8D6E63] font-black uppercase tracking-widest mb-1">Welfare Price</p>
+                                                <div class="flex items-baseline gap-2">
+                                                    <p class="text-[#5D4037] font-black text-2xl leading-none italic">Rs.${item.welfarePrice}</p>
+                                                    <p class="text-[#8D6E63] text-xs line-through opacity-50 font-bold">Rs.${item.mrpPrice}</p>
+                                                </div>
+                                            </div>
+                                            <div class="bg-[#5D4037] text-white p-3 rounded-2xl group-hover:bg-[#3E2723] transition-colors shadow-lg">
+                                                <i data-lucide="chevron-right" class="w-5 h-5"></i>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            `;
+                        });
+                    }
+                    lucide.createIcons();
+                };
+
+                document.getElementById('searchInput').addEventListener('input', filterAndRender);
+                document.getElementById('priceFilter').addEventListener('change', filterAndRender);
+                filterAndRender();
+            });
+        }
+
+        loadItemsWithRemainingQty();
+
+        window.logout = () => {
+            sessionStorage.clear();
+            window.location.href = "index.html";
+        };
+
+        lucide.createIcons();
+    </script>
+</body>
+</html>

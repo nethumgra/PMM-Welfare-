@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Orders - PMM Welfare Shop</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body class="bg-[#FDF8F5] text-[#3E2723] font-sans">
+
+    <nav class="p-6 flex justify-between items-center max-w-7xl mx-auto">
+        <h1 class="text-2xl font-black italic text-[#5D4037] cursor-pointer" onclick="location.href='products.html'">PMM Welfare.</h1>
+        <div class="flex gap-4 items-center">
+            <div class="text-right">
+                <p id="displayStaffName" class="font-bold text-sm">Staff User</p>
+                <p id="displayPosition" class="text-[10px] text-[#8D6E63] font-black uppercase tracking-widest">Role</p>
+            </div>
+            <button onclick="location.href='products.html'" class="bg-white p-3 rounded-2xl shadow-sm border border-[#F5EBE0] text-[#5D4037] hover:bg-[#FDF8F5] transition">
+                <i data-lucide="arrow-left" class="w-6 h-6"></i>
+            </button>
+        </div>
+    </nav>
+
+    <main class="max-w-7xl mx-auto px-6 py-10">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+            <div class="bg-white p-6 rounded-[2.5rem] border border-[#F5EBE0] shadow-sm">
+                <p class="text-[10px] font-black text-[#8D6E63] uppercase tracking-widest mb-2">Monthly Budget Used</p>
+                <h3 class="text-2xl font-black text-[#5D4037]" id="budgetUsedDisplay">Rs. 0.00</h3>
+                <div class="w-full bg-[#FDF8F5] h-2 rounded-full mt-3 overflow-hidden">
+                    <div id="budgetBar" class="bg-[#5D4037] h-full transition-all duration-1000" style="width: 0%"></div>
+                </div>
+            </div>
+            <div class="bg-white p-6 rounded-[2.5rem] border border-[#F5EBE0] shadow-sm">
+                <p class="text-[10px] font-black text-[#8D6E63] uppercase tracking-widest mb-2">Total Welfare Savings</p>
+                <h3 class="text-2xl font-black text-green-600" id="totalSavingsDisplay">Rs. 0.00</h3>
+                <p class="text-[10px] text-green-600 font-bold mt-2 uppercase">Your Profit This Month</p>
+            </div>
+            <div class="bg-white p-6 rounded-[2.5rem] border border-[#F5EBE0] shadow-sm flex items-center justify-between">
+                <div>
+                    <p class="text-[10px] font-black text-[#8D6E63] uppercase tracking-widest">Orders Placed</p>
+                    <h3 class="text-2xl font-black text-[#5D4037]" id="orderCountDisplay">0</h3>
+                </div>
+                <div class="bg-[#FDF8F5] p-4 rounded-3xl text-[#5D4037]"><i data-lucide="shopping-bag"></i></div>
+            </div>
+        </div>
+
+        <div class="bg-white rounded-[3rem] shadow-xl border border-[#F5EBE0] overflow-hidden">
+            <div class="p-8 border-b border-[#FDF8F5] flex justify-between items-center">
+                <h3 class="text-xl font-black">Purchase History</h3>
+                <i data-lucide="history" class="text-[#8D6E63]"></i>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="w-full text-left">
+                    <thead>
+                        <tr class="bg-[#FDF8F5] text-[#8D6E63] text-[10px] uppercase tracking-widest">
+                            <th class="p-8">Date</th>
+                            <th class="p-8">Item Details</th>
+                            <th class="p-8">Welfare Price</th>
+                            <th class="p-8">Your Saving</th>
+                            <th class="p-8 text-center">Status</th>
+                            <th class="p-8 text-right">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="staffOrdersBody" class="text-sm font-medium">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </main>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, collection, query, where, onSnapshot, getDocs, doc, updateDoc, increment, addDoc, getDoc, orderBy } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyB3jlpc_vbUydda2XpDj5Xd1J8kVei9v8U",
+            authDomain: "inventory-c3cca.firebaseapp.com",
+            projectId: "inventory-c3cca",
+            storageBucket: "inventory-c3cca.firebasestorage.app",
+            messagingSenderId: "396140403894",
+            appId: "1:396140403894:web:316617b8e390f8b0575a17",
+            measurementId: "G-YK5X3Z6HER"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        const staffId = sessionStorage.getItem('staffId');
+        const staffName = sessionStorage.getItem('staffName');
+        const userPosition = sessionStorage.getItem('userPosition');
+
+        document.getElementById('displayStaffName').innerText = staffName;
+        document.getElementById('displayPosition').innerText = userPosition;
+
+   async function loadMyOrders() {
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    
+    // 1. Get Role Budget Limit (Case-insensitive correction)
+    let budgetLimit = 0;
+    const rolesSnap = await getDocs(collection(db, "roles"));
+    if(!rolesSnap.empty) {
+        // මෙතනදී "DIRECTOR" සහ "Director" දෙකම එක ලෙස සලකා limit එක ලබාගනී
+        const matchingRole = rolesSnap.docs.find(doc => 
+            doc.data().name.toLowerCase().trim() === userPosition.toLowerCase().trim()
+        );
+        budgetLimit = matchingRole ? matchingRole.data().monthlyLimit : 0;
+    }
+
+    const q = query(collection(db, "orders"), where("staffId", "==", staffId), orderBy("createdAt", "desc"));
+    
+    onSnapshot(q, (snap) => {
+        const tableBody = document.getElementById('staffOrdersBody');
+        tableBody.innerHTML = '';
+        
+        let spentThisMonth = 0;
+        let savingsThisMonth = 0;
+        let totalItemsCount = 0; // "Orders Placed" වෙනුවට "Total Items" පෙන්වීමට
+
+        snap.forEach(d => {
+            const order = d.data();
+            const orderId = d.id;
+            const orderDate = order.createdAt?.toDate();
+            const status = order.status || "Pending";
+            
+            // "Cancelled" නොවන orders පමණක් budget එකට එකතු කිරීම
+            if(orderDate >= startOfMonth && status !== "Cancelled") {
+                spentThisMonth += order.total || 0;
+                savingsThisMonth += order.savings || 0;
+                
+                // මෙතනදී orderCount++ වෙනුවට qty එකතු කරන්න (6ක් ගත්තා නම් 6ක් පෙන්වීමට)
+                totalItemsCount += order.qty || 0; 
+            }
+
+            let statusStyle = "bg-orange-100 text-orange-600";
+            if(status === "Completed") statusStyle = "bg-green-100 text-green-600";
+            else if(status === "Dispatched") statusStyle = "bg-blue-100 text-blue-600";
+            else if(status === "Cancelled") statusStyle = "bg-red-100 text-red-600";
+
+            tableBody.innerHTML += `
+                <tr class="border-b border-[#FDF8F5] hover:bg-[#FDF8F5] transition">
+                    <td class="p-8 text-[11px] font-bold text-[#8D6E63]">${orderDate?.toLocaleDateString()}</td>
+                    <td class="p-8">
+                        <p class="font-black text-[#5D4037]">${order.itemName}</p>
+                        <p class="text-[9px] text-[#8D6E63] uppercase">Qty: ${order.qty} | #${orderId.substring(0,8)}</p>
+                    </td>
+                    <td class="p-8 font-black text-[#5D4037]">Rs. ${order.total.toLocaleString()}</td>
+                    <td class="p-8 font-black text-green-600 italic">Rs. ${order.savings.toLocaleString()}</td>
+                    <td class="p-8 text-center">
+                        <span class="px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest ${statusStyle}">
+                            ${status}
+                        </span>
+                    </td>
+                    <td class="p-8 text-right">
+                        ${status === "Pending" ? `
+                            <button onclick="cancelOrder('${orderId}', '${order.itemId}', ${order.qty}, '${order.itemName}')" 
+                                    class="text-red-400 hover:text-red-600 transition flex items-center gap-1 ml-auto font-bold text-[10px] uppercase">
+                                <i data-lucide="x-circle" class="w-4 h-4"></i> Cancel
+                            </button>
+                        ` : '-'}
+                    </td>
+                </tr>`;
+        });
+
+        // UI Summary Updates
+        document.getElementById('budgetUsedDisplay').innerText = `Rs. ${spentThisMonth.toLocaleString()} / ${budgetLimit.toLocaleString()}`;
+        document.getElementById('totalSavingsDisplay').innerText = `Rs. ${savingsThisMonth.toLocaleString()}`;
+        
+        // මෙතනදී දැන් order count එක වෙනුවට මුළු බඩු ප්‍රමාණය වැටෙයි
+        document.getElementById('orderCountDisplay').innerText = totalItemsCount; 
+        
+        const percent = budgetLimit > 0 ? (spentThisMonth / budgetLimit) * 100 : 0;
+        document.getElementById('budgetBar').style.width = Math.min(percent, 100) + "%";
+        if(percent > 90) document.getElementById('budgetBar').classList.add('bg-red-500');
+
+        lucide.createIcons();
+    });
+}
+        // --- CANCELLATION LOGIC ---
+        window.cancelOrder = async (orderId, itemId, qty, itemName) => {
+            if (!confirm(`Are you sure you want to cancel the order for ${itemName}?`)) return;
+
+            try {
+                // 1. Update order status to Cancelled
+                await updateDoc(doc(db, "orders", orderId), { status: "Cancelled" });
+
+                // 2. Fetch current item stock to calculate new balance for logs
+                const itemRef = doc(db, "items", itemId);
+                const itemSnap = await getDoc(itemRef);
+                const currentStock = itemSnap.exists() ? itemSnap.data().stock : 0;
+
+                // 3. Put quantity back into inventory
+                await updateDoc(itemRef, { stock: increment(qty) });
+
+                // 4. Record entry in Bin Card (inventory_logs)
+                await addDoc(collection(db, "inventory_logs"), {
+                    itemId,
+                    itemName,
+                    type: "IN",
+                    qty,
+                    balance: currentStock + qty,
+                    createdAt: new Date(),
+                    note: `Order #${orderId.substring(0,8)} was cancelled.`
+                });
+
+                alert("Order successfully cancelled and inventory updated!");
+            } catch (e) {
+                alert("Error cancelling order: " + e.message);
+            }
+        };
+
+        loadMyOrders();
+        lucide.createIcons();
+    </script>
+</body>
+</html>
