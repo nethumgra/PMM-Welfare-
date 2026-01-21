@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Cart - PMM Welfare Shop</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #F0FDF4; }
+        ::-webkit-scrollbar-thumb { background: #059669; border-radius: 10px; }
+    </style>
+    <script>
+        if (!sessionStorage.getItem('epfNumber') && !sessionStorage.getItem('staffId')) { 
+            window.location.href = "index.html"; 
+        }
+    </script>
+</head>
+<body class="bg-[#F0FDF4] text-[#064E3B] font-sans">
+
+    <div id="successOverlay" class="fixed inset-0 bg-[#064E3B]/95 z-[100] hidden flex items-center justify-center p-6 backdrop-blur-md">
+        <div class="bg-white w-full max-w-sm rounded-[3.5rem] p-10 text-center shadow-2xl">
+            <div class="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                <i data-lucide="check" class="w-10 h-10 text-[#059669]"></i>
+            </div>
+            <h2 class="text-2xl font-black mb-2 text-[#064E3B]">Order Placed!</h2>
+            <p class="text-[#059669] text-sm mb-8 font-medium italic">Your cart order is pending approval.</p>
+            <button onclick="location.href='products.html'" class="w-full bg-[#059669] text-white py-5 rounded-3xl font-black shadow-lg hover:bg-[#047857]">Back to Store</button>
+        </div>
+    </div>
+
+    <nav class="p-6 bg-[#F0FDF4]/80 backdrop-blur-md sticky top-0 z-40 border-b border-[#DCFCE7]">
+        <div class="max-w-7xl mx-auto flex justify-between items-center">
+            <div class="flex items-center gap-4 cursor-pointer" onclick="location.href='products.html'">
+                <img id="navLogo" src="" class="w-12 h-12 object-contain hidden border border-emerald-100 p-1 bg-white rounded-xl shadow-sm">
+                <h1 id="siteName" class="text-2xl font-black italic text-[#059669]">PMM Welfare.</h1>
+            </div>
+            <div class="flex gap-4 items-center">
+                <div class="text-right hidden sm:block">
+                    <p id="displayStaffName" class="font-bold text-sm text-[#064E3B]">Staff User</p>
+                    <p class="text-[10px] text-[#059669] font-black italic uppercase" id="displayPos">Role</p>
+                </div>
+                <img id="displayUserImg" src="" class="w-10 h-10 rounded-xl object-cover border-2 border-white shadow-sm cursor-pointer" onclick="location.href='staff-orders.html'">
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-7xl mx-auto px-6 py-10">
+        <div class="flex items-center gap-4 mb-10">
+            <h2 class="text-3xl font-black text-[#064E3B]">Shopping Cart</h2>
+            <div class="h-[2px] flex-1 bg-gradient-to-r from-[#DCFCE7] to-transparent"></div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-10">
+            <div class="lg:col-span-2 space-y-6" id="cartContainer">
+                </div>
+
+            <div class="lg:col-span-1">
+                <div class="bg-white p-8 rounded-[3rem] shadow-xl border border-[#DCFCE7] sticky top-32">
+                    <h3 class="text-xl font-black text-[#064E3B] mb-6">Order Summary</h3>
+                    <div class="space-y-4 mb-8">
+                        <div class="flex justify-between text-sm">
+                            <span class="font-bold text-gray-400 uppercase">Subtotal</span>
+                            <span class="font-black text-[#064E3B]" id="subtotalDisplay">Rs. 0.00</span>
+                        </div>
+                        <div class="flex justify-between text-sm">
+                            <span class="font-bold text-emerald-600 uppercase">Total Saving</span>
+                            <span class="font-black text-emerald-600" id="savingDisplay">Rs. 0.00</span>
+                        </div>
+                        <div class="pt-4 border-t border-[#F0FDF4] flex justify-between items-center">
+                            <span class="font-black text-[#064E3B]">Net Total</span>
+                            <span class="text-2xl font-black text-[#064E3B]" id="totalDisplay">Rs. 0.00</span>
+                        </div>
+                    </div>
+
+                    <div class="p-4 bg-emerald-50 rounded-2xl mb-6">
+                        <p class="text-[10px] font-black text-[#059669] uppercase tracking-widest mb-1">Monthly Budget Remaining</p>
+                        <p class="text-lg font-black text-[#064E3B]" id="budgetDisplay">Rs. 0.00</p>
+                    </div>
+
+                    <button id="checkoutBtn" onclick="processCheckout()" class="w-full bg-[#059669] text-white p-5 rounded-2xl font-black text-lg hover:bg-[#047857] transition shadow-xl disabled:opacity-50">
+                        Confirm & Place Order
+                    </button>
+                    <p id="errorMsg" class="text-center text-red-500 text-[10px] font-bold mt-3 hidden uppercase tracking-widest"></p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, doc, getDoc, getDocs, collection, addDoc, query, where, updateDoc, increment, onSnapshot, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+            apiKey: "AIzaSyB3jlpc_vbUydda2XpDj5Xd1J8kVei9v8U",
+            authDomain: "inventory-c3cca.firebaseapp.com",
+            projectId: "inventory-c3cca",
+            storageBucket: "inventory-c3cca.firebasestorage.app",
+            messagingSenderId: "396140403894",
+            appId: "1:396140403894:web:316617b8e390f8b0575a17"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        const epfNumber = sessionStorage.getItem('epfNumber') || sessionStorage.getItem('staffId');
+        const userPosition = sessionStorage.getItem('userPosition');
+        let dbCartItems = []; 
+        let monthlySpent = 0;
+        let roleBudget = 0;
+
+        async function init() {
+            // 1. Site Branding Sync
+            onSnapshot(doc(db, "settings", "site"), (d) => {
+                if (d.exists()) {
+                    document.getElementById('siteName').innerText = d.data().name;
+                    if(d.data().logoUrl) {
+                        const logo = document.getElementById('navLogo');
+                        logo.src = d.data().logoUrl;
+                        logo.classList.remove('hidden');
+                    }
+                }
+            });
+
+            document.getElementById('displayStaffName').innerText = sessionStorage.getItem('staffName');
+            document.getElementById('displayPos').innerText = userPosition;
+            document.getElementById('displayUserImg').src = sessionStorage.getItem('userImage') || "https://cdn-icons-png.flaticon.com/512/149/149071.png";
+
+            // 2. Budget Loading
+            const rolesSnap = await getDocs(collection(db, "roles"));
+            const matchingRole = rolesSnap.docs.find(d => d.data().name.toLowerCase().trim() === userPosition.toLowerCase().trim());
+            roleBudget = matchingRole ? matchingRole.data().monthlyLimit : 0;
+
+            const now = new Date();
+            const start = new Date(now.getFullYear(), now.getMonth(), 1);
+            const q = query(collection(db, "orders"), where("staffId", "==", epfNumber), where("createdAt", ">=", start));
+            const orders = await getDocs(q);
+            
+            orders.forEach(o => {
+                if(o.data().status !== "Cancelled") monthlySpent += o.data().total;
+            });
+
+            // 3. Real-time Cart Listener (This links it to Product Details)
+            onSnapshot(doc(db, "user_carts", epfNumber), (cartDoc) => {
+                dbCartItems = cartDoc.exists() ? cartDoc.data().items : [];
+                renderCart();
+            });
+        }
+
+        window.renderCart = () => {
+            const container = document.getElementById('cartContainer');
+            container.innerHTML = '';
+            
+            if(dbCartItems.length === 0) {
+                container.innerHTML = `
+                    <div class="bg-white p-20 rounded-[3rem] text-center border-2 border-dashed border-[#DCFCE7]">
+                        <i data-lucide="shopping-basket" class="w-16 h-16 mx-auto mb-4 text-[#059669] opacity-20"></i>
+                        <p class="font-black text-[#064E3B]">Your cloud cart is empty.</p>
+                        <button onclick="location.href='products.html'" class="mt-4 text-[#059669] font-bold underline">Go back to store</button>
+                    </div>`;
+                updateSummary();
+                lucide.createIcons();
+                return;
+            }
+
+            dbCartItems.forEach((item, index) => {
+                container.innerHTML += `
+                    <div class="bg-white p-6 rounded-[2.5rem] shadow-sm border border-[#DCFCE7] flex flex-col md:flex-row items-center gap-6">
+                        <img src="${item.imageUrl}" class="w-24 h-24 rounded-2xl object-cover border border-[#F0FDF4]">
+                        <div class="flex-1 text-center md:text-left">
+                            <h4 class="font-black text-lg text-[#064E3B]">${item.name}</h4>
+                            <p class="text-[10px] font-bold text-[#059669] uppercase tracking-widest">Welfare Price: Rs. ${item.welfarePrice.toLocaleString()}</p>
+                        </div>
+                        <div class="flex items-center bg-[#F0FDF4] rounded-2xl p-1 border border-[#DCFCE7]">
+                            <button onclick="updateQty(${index}, -1)" class="w-10 h-10 bg-white rounded-xl shadow-sm flex items-center justify-center text-[#059669] hover:bg-emerald-50"><i data-lucide="minus"></i></button>
+                            <span class="w-12 text-center font-black text-[#064E3B]">${item.qty}</span>
+                            <button onclick="updateQty(${index}, 1)" class="w-10 h-10 bg-white rounded-xl shadow-sm flex items-center justify-center text-[#059669] hover:bg-emerald-50"><i data-lucide="plus"></i></button>
+                        </div>
+                        <div class="text-right min-w-[120px]">
+                            <p class="font-black text-[#064E3B]">Rs. ${(item.welfarePrice * item.qty).toLocaleString()}</p>
+                            <button onclick="removeItem(${index})" class="text-[10px] font-bold text-red-500 hover:underline uppercase mt-1">Remove</button>
+                        </div>
+                    </div>`;
+            });
+            updateSummary();
+            lucide.createIcons();
+        };
+
+        window.updateQty = async (index, val) => {
+            const item = dbCartItems[index];
+            const newQty = item.qty + val;
+
+            // Fetch live item data for stock check
+            const itemSnap = await getDoc(doc(db, "items", item.itemId));
+            const liveStock = itemSnap.exists() ? itemSnap.data().stock : 0;
+
+            if(newQty >= 1 && newQty <= liveStock) {
+                dbCartItems[index].qty = newQty;
+                await setDoc(doc(db, "user_carts", epfNumber), { items: dbCartItems });
+            } else if (newQty > liveStock) {
+                alert("Insufficient stock available!");
+            }
+        };
+
+        window.removeItem = async (index) => {
+            dbCartItems.splice(index, 1);
+            await setDoc(doc(db, "user_carts", epfNumber), { items: dbCartItems });
+        };
+
+        function updateSummary() {
+            let subtotal = 0;
+            let savings = 0;
+            dbCartItems.forEach(i => {
+                subtotal += (i.welfarePrice * i.qty);
+                savings += ((i.mrpPrice - i.welfarePrice) * i.qty);
+            });
+
+            document.getElementById('subtotalDisplay').innerText = `Rs. ${subtotal.toLocaleString()}`;
+            document.getElementById('totalDisplay').innerText = `Rs. ${subtotal.toLocaleString()}`;
+            document.getElementById('savingDisplay').innerText = `Rs. ${savings.toLocaleString()}`;
+            document.getElementById('budgetDisplay').innerText = `Rs. ${Math.max(0, roleBudget - monthlySpent).toLocaleString()}`;
+
+            const checkoutBtn = document.getElementById('checkoutBtn');
+            const errorMsg = document.getElementById('errorMsg');
+            
+            if(subtotal > (roleBudget - monthlySpent)) {
+                checkoutBtn.disabled = true;
+                errorMsg.innerText = "Monthly Budget Exceeded!";
+                errorMsg.classList.remove('hidden');
+            } else {
+                checkoutBtn.disabled = dbCartItems.length === 0;
+                errorMsg.classList.add('hidden');
+            }
+        }
+
+        window.processCheckout = async () => {
+            const checkoutBtn = document.getElementById('checkoutBtn');
+            const originalText = checkoutBtn.innerText;
+            checkoutBtn.innerText = "Processing...";
+            checkoutBtn.disabled = true;
+
+            try {
+                const orderData = {
+                    staffId: epfNumber,
+                    staffName: sessionStorage.getItem('staffName'),
+                    userPosition: userPosition,
+                    items: dbCartItems.map(i => ({ 
+                        itemId: i.itemId, 
+                        itemName: i.name, 
+                        qty: i.qty, 
+                        price: i.welfarePrice,
+                        mrp: i.mrpPrice 
+                    })),
+                    total: dbCartItems.reduce((acc, i) => acc + (i.welfarePrice * i.qty), 0),
+                    savings: dbCartItems.reduce((acc, i) => acc + ((i.mrpPrice - i.welfarePrice) * i.qty), 0),
+                    status: "Pending",
+                    createdAt: new Date()
+                };
+
+                const oRef = await addDoc(collection(db, "orders"), orderData);
+
+                // Update Stock and Logs
+                for(let item of dbCartItems) {
+                    const itemRef = doc(db, "items", item.itemId);
+                    await updateDoc(itemRef, { stock: increment(-item.qty) });
+                    
+                    const snap = await getDoc(itemRef);
+                    if(snap.exists() && snap.data().stock <= 0) {
+                        await updateDoc(itemRef, { status: "Inactive" });
+                    }
+
+                    await addDoc(collection(db, "inventory_logs"), {
+                        itemId: item.itemId, 
+                        itemName: item.name, 
+                        type: "OUT", 
+                        qty: item.qty, 
+                        balance: snap.exists() ? snap.data().stock : 0, 
+                        createdAt: new Date(), 
+                        note: `Cart Order #${oRef.id.slice(0,8)}`
+                    });
+                }
+
+                // Delete cart from database after successful order
+                await deleteDoc(doc(db, "user_carts", epfNumber));
+                document.getElementById('successOverlay').classList.remove('hidden');
+                lucide.createIcons();
+            } catch (e) {
+                alert("Error: " + e.message);
+                checkoutBtn.innerText = originalText;
+                checkoutBtn.disabled = false;
+            }
+        };
+
+        init();
+    </script>
+</body>
+</html>

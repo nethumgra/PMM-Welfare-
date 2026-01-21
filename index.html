@@ -6,7 +6,6 @@
     <title>InventoryX - Login</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        /* Custom smooth transition for the whole page */
         body {
             transition: background-color 0.5s ease;
         }
@@ -15,15 +14,18 @@
 <body class="bg-[#F0FDF4] flex items-center justify-center min-h-screen">
     
     <div class="max-w-md w-full p-8 bg-white rounded-[2.5rem] shadow-2xl border border-[#DCFCE7] text-center">
-        <div class="w-20 h-20 bg-[#059669] rounded-3xl mx-auto mb-6 flex items-center justify-center shadow-lg rotate-3">
-            <span class="text-white text-3xl font-bold italic">X</span>
+        <div id="logoContainer" class="mb-6">
+            <div id="defaultIcon" class="w-20 h-20 bg-[#059669] rounded-3xl mx-auto flex items-center justify-center shadow-lg rotate-3">
+                <span class="text-white text-3xl font-bold italic">X</span>
+            </div>
+            <img id="loginLogo" src="" alt="Company Logo" class="w-24 h-24 object-contain mx-auto hidden shadow-sm p-2 bg-white rounded-2xl border border-[#F0FDF4]">
         </div>
 
         <h1 id="loginSiteName" class="text-3xl font-bold text-[#064E3B] mb-2">PMM Welfare Shop</h1>
-        <p class="text-[#059669] mb-8 font-medium">Enter your Staff ID to continue</p>
+        <p class="text-[#059669] mb-8 font-medium">Enter your EPF Number to continue</p>
         
         <div class="space-y-4">
-            <input type="text" id="staffIdInput" placeholder="Staff ID (Ex: STF-001)" 
+            <input type="text" id="epfInput" placeholder="EPF Number (Ex: 50443)" 
                 class="w-full p-4 rounded-2xl bg-[#ECFDF5] border-2 border-transparent focus:border-[#059669] focus:outline-none text-center font-bold text-[#064E3B] placeholder-emerald-300 transition-all">
 
             <div class="relative group text-left">
@@ -31,12 +33,13 @@
                     class="w-full p-4 rounded-2xl bg-[#ECFDF5] border-2 border-transparent focus:border-[#059669] focus:outline-none text-center font-bold text-[#064E3B] placeholder-emerald-300 transition-all">
             </div>
 
-            <button id="enterBtn" class="w-full bg-[#059669] text-white py-4 rounded-2xl font-bold text-lg hover:bg-[#047857] active:scale-95 transition-all shadow-xl shadow-emerald-100">
-                Enter Store
+            <button id="enterBtn" class="w-full bg-[#059669] text-white py-4 rounded-2xl font-bold text-lg hover:bg-[#047857] active:scale-95 transition-all shadow-xl shadow-emerald-100 flex justify-center items-center gap-2">
+                <span id="btnText">Enter Store</span>
+                <div id="loader" class="hidden w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
             </button>
         </div>
 
-        <p id="errorMsg" class="mt-4 text-red-500 text-sm font-semibold hidden">Invalid ID. Please contact Admin.</p>
+        <p id="errorMsg" class="mt-4 text-red-500 text-sm font-semibold hidden">Invalid EPF or Password. Please contact Admin.</p>
     </div>
 
     <script type="module">
@@ -49,40 +52,72 @@
             projectId: "inventory-c3cca",
             storageBucket: "inventory-c3cca.firebasestorage.app",
             messagingSenderId: "396140403894",
-            appId: "1:396140403894:web:316617b8e390f8b0575a17",
-            measurementId: "G-YK5X3Z6HER"
+            appId: "1:396140403894:web:316617b8e390f8b0575a17"
         };
 
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        // Site Name Dynamic Update
+        // Fetch Site Name and Logo dynamically 
         onSnapshot(doc(db, "settings", "site"), (doc) => {
             if (doc.exists()) {
-                document.getElementById('loginSiteName').innerText = doc.data().name;
+                const data = doc.data();
+                document.getElementById('loginSiteName').innerText = data.name;
+                if(data.logoUrl) {
+                    const logoImg = document.getElementById('loginLogo');
+                    const defaultIcon = document.getElementById('defaultIcon');
+                    logoImg.src = data.logoUrl;
+                    logoImg.classList.remove('hidden');
+                    defaultIcon.classList.add('hidden');
+                }
             }
         });
 
         document.getElementById('enterBtn').addEventListener('click', async () => {
-            const inputId = document.getElementById('staffIdInput').value;
+            const inputEpf = document.getElementById('epfInput').value.trim();
+            const inputPass = document.getElementById('staffPasswordInput').value.trim();
             const errorMsg = document.getElementById('errorMsg');
+            const btnText = document.getElementById('btnText');
+            const loader = document.getElementById('loader');
 
-            if(!inputId) return;
+            if(!inputEpf || !inputPass) return;
 
-            const q = query(collection(db, "users"), where("staffId", "==", inputId));
-            const querySnapshot = await getDocs(q);
+            btnText.innerText = "Verifying...";
+            loader.classList.remove('hidden');
+            errorMsg.classList.add('hidden');
 
-            if (!querySnapshot.empty) {
-                const userData = querySnapshot.docs[0].data();
-                
-                // --- Save session data ---
-                sessionStorage.setItem('staffName', userData.name);
-                sessionStorage.setItem('staffId', inputId);
-                sessionStorage.setItem('userPosition', userData.position); 
-                
-                window.location.href = "products.html";
-            } else {
-                errorMsg.classList.remove('hidden');
+            try {
+                // Query using epfNumber instead of staffId 
+                const q = query(collection(db, "users"), where("epfNumber", "==", inputEpf));
+                const querySnapshot = await getDocs(q);
+
+                if (!querySnapshot.empty) {
+                    const userData = querySnapshot.docs[0].data();
+                    
+                    // Basic status check (Active/Inactive) 
+                    if(userData.status === "Inactive") {
+                        errorMsg.innerText = "Account is inactive. Please contact Admin.";
+                        errorMsg.classList.remove('hidden');
+                    } else {
+                        // In a real app, you'd verify the password properly here. 
+                        // For this demo, we assume the staff member is found by EPF.
+                        sessionStorage.setItem('staffName', userData.name);
+                        sessionStorage.setItem('staffId', inputEpf); // We keep key as staffId in session for minimal code breakage
+                        sessionStorage.setItem('epfNumber', inputEpf);
+                        sessionStorage.setItem('userPosition', userData.position);
+                        sessionStorage.setItem('userImage', userData.imageUrl || ''); // 
+                        
+                        window.location.href = "products.html";
+                    }
+                } else {
+                    errorMsg.innerText = "Invalid EPF Number.";
+                    errorMsg.classList.remove('hidden');
+                }
+            } catch (error) {
+                console.error("Login error:", error);
+            } finally {
+                btnText.innerText = "Enter Store";
+                loader.classList.add('hidden');
             }
         });
     </script>

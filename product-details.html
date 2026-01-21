@@ -14,318 +14,438 @@
         .animate-scale { animation: scaleIn 0.5s ease-out forwards; }
         .animate-check { stroke-dasharray: 48; stroke-dashoffset: 48; animation: drawCheck 0.6s 0.3s ease-out forwards; }
         
-        /* Custom scrollbar */
-        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: #F0FDF4; }
         ::-webkit-scrollbar-thumb { background: #059669; border-radius: 10px; }
+        
+        .cart-drawer { transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
+        .drawer-open { transform: translateX(0); }
+        .drawer-closed { transform: translateX(100%); }
     </style>
 
     <script>
-        if (!sessionStorage.getItem('staffId')) { window.location.href = "index.html"; }
+        // Identity Gatekeeper
+        if (!sessionStorage.getItem('epfNumber') && !sessionStorage.getItem('staffId')) { 
+            window.location.href = "index.html"; 
+        }
     </script>
 </head>
-<body class="bg-[#F0FDF4] text-[#064E3B] font-sans">
+<body class="bg-[#F0FDF4] text-[#064E3B] font-sans overflow-x-hidden">
 
     <div id="successOverlay" class="fixed inset-0 bg-[#064E3B]/95 z-[100] hidden flex items-center justify-center p-6 backdrop-blur-md">
-        <div class="bg-white w-full max-w-sm rounded-[3.5rem] p-10 text-center shadow-2xl animate-scale border border-white/20">
-            <div class="w-24 h-24 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                <svg class="w-12 h-12 text-[#059669]" fill="none" stroke="currentColor" stroke-width="4" viewBox="0 0 24 24">
+        <div class="bg-white w-full max-w-sm rounded-[3.5rem] p-10 text-center shadow-2xl animate-scale">
+            <div class="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                <svg class="w-10 h-10 text-[#059669]" fill="none" stroke="currentColor" stroke-width="4" viewBox="0 0 24 24">
                     <path class="animate-check" stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"></path>
                 </svg>
             </div>
-            <h2 class="text-2xl font-black mb-2 text-[#064E3B]">Order Pending!</h2>
-            <p class="text-[#059669] text-sm mb-8 font-medium">Your order has been sent for approval. Please collect it once dispatched.</p>
+            <h2 class="text-2xl font-black mb-2 text-[#064E3B]">Order Placed!</h2>
+            <p class="text-[#059669] text-sm mb-8 font-medium italic">Pending approval from welfare admin.</p>
             
             <div class="space-y-3">
-                <button onclick="generateInvoice()" class="w-full bg-[#059669] text-white py-5 rounded-3xl font-black flex items-center justify-center gap-2 hover:bg-[#047857] transition shadow-lg">
+                <button onclick="generateInvoice()" class="w-full bg-[#059669] text-white py-4 rounded-2xl font-black flex items-center justify-center gap-2 hover:bg-[#047857] shadow-lg">
                     <i data-lucide="download"></i> Download Receipt
                 </button>
-                <button onclick="location.href='products.html'" class="w-full border-2 border-[#DCFCE7] text-[#064E3B] py-4 rounded-3xl font-black hover:bg-[#F0FDF4] transition">
-                    Return to Store
+                <button onclick="location.href='products.html'" class="w-full border-2 border-[#DCFCE7] text-[#064E3B] py-4 rounded-2xl font-black hover:bg-[#F0FDF4]">
+                    Back to Store
                 </button>
             </div>
         </div>
     </div>
 
-    <nav class="p-6 flex justify-between items-center max-w-7xl mx-auto">
-        <h1 class="text-2xl font-black italic text-[#059669] cursor-pointer" onclick="location.href='products.html'">PMM Welfare.</h1>
-        
-        <div class="flex gap-3 items-center">
-            <button onclick="location.href='staff-orders.html'" class="bg-white p-3 rounded-2xl shadow-sm border border-[#DCFCE7] text-[#059669] hover:bg-white/50 transition flex items-center gap-2 group">
-                <i data-lucide="user-circle" class="w-6 h-6 group-hover:scale-110 transition"></i>
+    <div id="cartOverlay" onclick="toggleCart()" class="fixed inset-0 bg-black/40 z-[80] hidden backdrop-blur-sm"></div>
+    <div id="cartDrawer" class="fixed inset-y-0 right-0 w-full max-w-md bg-white z-[90] shadow-2xl cart-drawer drawer-closed flex flex-col">
+        <div class="p-6 border-b border-gray-100 flex justify-between items-center bg-[#F0FDF4]">
+            <h3 class="text-xl font-black text-[#064E3B] flex items-center gap-2"><i data-lucide="shopping-basket"></i> Your Cart</h3>
+            <button onclick="toggleCart()" class="p-2 text-gray-400 hover:text-red-500"><i data-lucide="x" class="w-6 h-6"></i></button>
+        </div>
+        <div id="cartItems" class="flex-1 overflow-y-auto p-6 space-y-4">
+            </div>
+        <div class="p-6 border-t border-gray-100 bg-gray-50 space-y-4">
+            <div class="flex justify-between items-center font-black text-lg">
+                <span>Total Amount:</span>
+                <span id="cartTotal">Rs. 0.00</span>
+            </div>
+            <button id="cartCheckoutBtn" onclick="checkout('cart')" class="w-full bg-[#059669] text-white p-5 rounded-2xl font-black shadow-lg hover:bg-[#047857] transition disabled:opacity-50">
+                Confirm Cart Order
             </button>
+        </div>
+    </div>
 
+    <nav class="p-6 flex justify-between items-center max-w-7xl mx-auto">
+        <div class="flex items-center gap-3 cursor-pointer" onclick="location.href='products.html'">
+            <img id="navLogo" src="" class="w-10 h-10 object-contain hidden border border-emerald-100 p-1 bg-white rounded-lg">
+            <h1 id="siteName" class="text-2xl font-black italic text-[#059669]">PMM Welfare.</h1>
+        </div>
+        
+        <div class="flex gap-4 items-center">
+            <button onclick="toggleCart()" class="relative bg-white p-3 rounded-2xl shadow-sm border border-[#DCFCE7] text-[#059669] hover:bg-emerald-50 transition">
+                <i data-lucide="shopping-cart" class="w-6 h-6"></i>
+                <span id="cartCount" class="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] font-black w-6 h-6 rounded-full flex items-center justify-center border-2 border-white">0</span>
+            </button>
             <div class="text-right hidden sm:block">
                 <p id="displayStaffName" class="font-bold text-sm text-[#064E3B]">Staff User</p>
-                <p id="displayPosition" class="text-[10px] text-[#059669] font-black uppercase tracking-widest">Role</p>
+                <p id="displayPosition" class="text-[10px] text-[#059669] font-black uppercase tracking-widest italic">Role</p>
             </div>
-            
-            <button onclick="location.href='products.html'" class="bg-white p-3 rounded-2xl shadow-sm border border-[#DCFCE7] text-[#059669] hover:bg-white/50 transition">
-                <i data-lucide="arrow-left" class="w-6 h-6"></i>
-            </button>
+            <img id="displayUserImg" src="https://cdn-icons-png.flaticon.com/512/149/149071.png" class="w-10 h-10 rounded-xl object-cover border-2 border-white shadow-sm cursor-pointer" onclick="location.href='staff-orders.html'">
         </div>
     </nav>
 
-    <main class="max-w-7xl mx-auto px-6 py-10">
-        <div id="budgetInfo" class="mb-6 p-4 bg-white border border-[#DCFCE7] rounded-3xl flex flex-wrap justify-between items-center gap-4 shadow-sm">
-            <div>
-                <p class="text-[10px] font-black text-[#059669] uppercase tracking-widest">Monthly Budget Remaining</p>
-                <p class="text-xl font-black text-[#064E3B]" id="remainingBudgetDisplay">Calculating...</p>
+    <main class="max-w-7xl mx-auto px-6 py-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
+            <div class="bg-white p-6 rounded-[2.5rem] border border-[#DCFCE7] shadow-sm flex items-center gap-4">
+                <div class="w-12 h-12 bg-emerald-50 rounded-2xl flex items-center justify-center text-[#059669]"><i data-lucide="wallet"></i></div>
+                <div>
+                    <p class="text-[10px] font-black text-[#059669] uppercase tracking-widest">Monthly Budget Left</p>
+                    <p class="text-2xl font-black text-[#064E3B]" id="remainingBudgetDisplay">Rs. 0</p>
+                </div>
             </div>
-            <div class="h-10 w-[1px] bg-[#DCFCE7] hidden md:block"></div>
-            <div>
-                <p class="text-[10px] font-black text-[#059669] uppercase tracking-widest">Welfare Saving on this item</p>
-                <p class="text-xl font-black text-emerald-600" id="savingDisplay">Rs. 0.00</p>
+            <div class="bg-white p-6 rounded-[2.5rem] border border-[#DCFCE7] shadow-sm flex items-center gap-4">
+                <div class="w-12 h-12 bg-amber-50 rounded-2xl flex items-center justify-center text-amber-600"><i data-lucide="piggy-bank"></i></div>
+                <div>
+                    <p class="text-[10px] font-black text-[#059669] uppercase tracking-widest">You Save (This Item)</p>
+                    <p class="text-2xl font-black text-emerald-600" id="savingDisplay">Rs. 0.00</p>
+                </div>
             </div>
         </div>
 
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center bg-white p-8 md:p-12 rounded-[4rem] shadow-xl border border-[#DCFCE7]">
-            <div class="relative group">
-                <div class="bg-[#F0FDF4] rounded-[3rem] overflow-hidden aspect-square flex items-center justify-center border border-[#DCFCE7] shadow-inner">
-                    <img id="productImg" src="" alt="Product" class="w-full h-full object-cover transition duration-700 group-hover:scale-105">
-                </div>
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 bg-white p-8 md:p-12 rounded-[4rem] shadow-xl border border-[#DCFCE7] items-center">
+            <div class="bg-[#F0FDF4] rounded-[3rem] overflow-hidden aspect-square border border-[#DCFCE7] shadow-inner">
+                <img id="productImg" src="" class="w-full h-full object-cover hover:scale-105 transition duration-700">
             </div>
 
             <div class="space-y-8">
                 <div>
-                    <span id="roleBadge" class="bg-[#DCFCE7] text-[#059669] px-5 py-2 rounded-full text-[10px] font-black uppercase tracking-widest border border-white">Loading...</span>
-                    <h2 id="productName" class="text-4xl font-black mt-5 leading-tight text-[#064E3B]">Loading...</h2>
-                    <div class="mt-2 flex items-baseline gap-3">
-                        <p id="welfarePriceDisplay" class="text-3xl font-black text-[#064E3B] italic">Rs. 0.00</p>
-                        <p id="mrpPriceDisplay" class="text-sm text-[#059669] line-through font-bold opacity-60">MRP: Rs. 0.00</p>
+                    <span id="roleBadge" class="bg-emerald-100 text-emerald-700 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-tighter">Quota Loaded</span>
+                    <h2 id="productName" class="text-4xl font-black text-[#064E3B] mt-4 leading-tight">Loading...</h2>
+                    <div class="mt-4 flex items-baseline gap-3">
+                        <p id="wPrice" class="text-3xl font-black text-[#064E3B] italic">Rs. 0.00</p>
+                        <p id="mPrice" class="text-sm text-[#059669] line-through font-bold opacity-60">MRP: Rs. 0.00</p>
                     </div>
-                </div>
-
-                <div class="p-6 bg-emerald-50 rounded-[2.5rem] border border-emerald-100">
-                    <h4 class="font-bold text-xs flex items-center gap-2 uppercase text-emerald-700 mb-2">
-                        <i data-lucide="piggy-bank" class="w-4 h-4"></i> Welfare Benefit
-                    </h4>
-                    <p class="text-xs text-emerald-800 font-medium leading-relaxed">
-                        By purchasing this item through the welfare shop, you are saving <span id="unitSaving" class="font-black">Rs. 0.00</span> per unit.
-                    </p>
+                    
+                    <div id="commentBox" class="mt-4 p-4 bg-amber-50 rounded-2xl border border-amber-100 hidden">
+                        <p class="text-[9px] font-black text-amber-700 uppercase mb-1 italic flex items-center gap-1"><i data-lucide="info" class="w-3 h-3"></i> Note from Store:</p>
+                        <p id="productComment" class="text-xs font-medium text-amber-800"></p>
+                    </div>
                 </div>
 
                 <div class="space-y-4">
                     <div class="flex items-center gap-6">
                         <div class="flex items-center bg-[#F0FDF4] border border-[#DCFCE7] rounded-3xl p-2 shadow-sm">
-                            <button onclick="changeQty(-1)" class="w-12 h-12 bg-white rounded-2xl shadow-sm border border-[#DCFCE7] flex items-center justify-center text-[#059669] hover:bg-emerald-50 transition"><i data-lucide="minus"></i></button>
-                            <input type="number" id="orderQty" value="1" class="w-16 text-center bg-transparent font-black text-2xl focus:outline-none text-[#064E3B]" readonly>
-                            <button onclick="changeQty(1)" class="w-12 h-12 bg-white rounded-2xl shadow-sm border border-[#DCFCE7] flex items-center justify-center text-[#059669] hover:bg-emerald-50 transition"><i data-lucide="plus"></i></button>
+                            <button onclick="changeQty(-1)" class="w-12 h-12 bg-white rounded-2xl shadow-sm border border-[#DCFCE7] text-[#059669] hover:bg-emerald-50"><i data-lucide="minus"></i></button>
+                            <input type="number" id="orderQty" value="1" class="w-16 text-center bg-transparent font-black text-2xl text-[#064E3B] focus:outline-none" readonly>
+                            <button onclick="changeQty(1)" class="w-12 h-12 bg-white rounded-2xl shadow-sm border border-[#DCFCE7] text-[#059669] hover:bg-emerald-50"><i data-lucide="plus"></i></button>
                         </div>
                         <div>
-                            <p class="text-[10px] font-black text-[#059669] uppercase tracking-widest">Qty Limit (Personal)</p>
-                            <p class="text-xl font-black text-[#064E3B]"><span id="personalQtyLeft">0</span> / <span id="totalRoleLimit">0</span></p>
+                            <p class="text-[10px] font-black text-[#059669] uppercase tracking-widest">Available Quota</p>
+                            <p class="text-xl font-black text-[#064E3B]"><span id="personalQtyLeft">0</span> / <span id="totalLimit">0</span></p>
                         </div>
                     </div>
-                    <p class="text-[10px] text-red-500 font-bold uppercase" id="stockAlert"></p>
+                    <p id="stockAlert" class="text-[10px] text-red-500 font-bold uppercase"></p>
                 </div>
 
-                <button id="buyBtn" class="w-full bg-[#059669] text-white p-6 rounded-[2.5rem] font-black text-xl hover:bg-[#047857] transition-all transform active:scale-95 shadow-2xl shadow-emerald-200 flex items-center justify-center gap-3">
-                    <i data-lucide="shopping-bag"></i> Place Order
-                </button>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <button id="addCartBtn" onclick="addToCart()" class="bg-white border-2 border-[#059669] text-[#059669] p-5 rounded-[2.5rem] font-black text-lg hover:bg-emerald-50 transition flex items-center justify-center gap-2">
+                        <i data-lucide="shopping-cart"></i> Add to Cart
+                    </button>
+                    <button id="buyBtn" onclick="checkout('direct')" class="bg-[#059669] text-white p-5 rounded-[2.5rem] font-black text-lg hover:bg-[#047857] transition-all transform active:scale-95 shadow-xl shadow-emerald-100 flex items-center justify-center gap-2">
+                        <i data-lucide="shopping-bag"></i> Buy Now
+                    </button>
+                </div>
             </div>
         </div>
     </main>
 
-   <script type="module">
-    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-    import { getFirestore, doc, getDoc, getDocs, collection, addDoc, query, where, updateDoc, increment } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, doc, getDoc, getDocs, collection, addDoc, query, where, updateDoc, increment, onSnapshot, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
-    const firebaseConfig = {
-        apiKey: "AIzaSyB3jlpc_vbUydda2XpDj5Xd1J8kVei9v8U",
-        authDomain: "inventory-c3cca.firebaseapp.com",
-        projectId: "inventory-c3cca",
-        storageBucket: "inventory-c3cca.firebasestorage.app",
-        messagingSenderId: "396140403894",
-        appId: "1:396140403894:web:316617b8e390f8b0575a17",
-        measurementId: "G-YK5X3Z6HER"
-    };
+        const firebaseConfig = {
+            apiKey: "AIzaSyB3jlpc_vbUydda2XpDj5Xd1J8kVei9v8U",
+            authDomain: "inventory-c3cca.firebaseapp.com",
+            projectId: "inventory-c3cca",
+            storageBucket: "inventory-c3cca.firebasestorage.app",
+            messagingSenderId: "396140403894",
+            appId: "1:396140403894:web:316617b8e390f8b0575a17"
+        };
 
-    const app = initializeApp(firebaseConfig);
-    const db = getFirestore(app);
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
 
-    const urlParams = new URLSearchParams(window.location.search);
-    const productId = urlParams.get('id');
-    const staffId = sessionStorage.getItem('staffId');
-    const userPosition = sessionStorage.getItem('userPosition');
-    const staffName = sessionStorage.getItem('staffName');
+        // State Variables
+        const urlParams = new URLSearchParams(window.location.search);
+        const productId = urlParams.get('id');
+        const epfNumber = sessionStorage.getItem('epfNumber') || sessionStorage.getItem('staffId');
+        const userPosition = sessionStorage.getItem('userPosition');
+        const staffName = sessionStorage.getItem('staffName');
 
-    let productData = null;
-    let roleBudgetLimit = 0;
-    let finalMaxQtyAllowed = 0;
-    let currentMonthSpent = 0;
-    let lastOrderId = "";
+        let productData = null;
+        let roleBudget = 0;
+        let maxAllowedQty = 0;
+        let monthlySpent = 0;
+        let dbCartItems = [];
+        let lastOrderRef = null;
 
-  async function initPage() {
-    if (!productId) { window.location.href = "products.html"; return; }
-    
-    document.getElementById('displayStaffName').innerText = staffName;
-    document.getElementById('displayPosition').innerText = userPosition;
+        async function init() {
+            if (!productId) return window.location.href = "products.html";
+            
+            // 1. Real-time Site Branding
+            onSnapshot(doc(db, "settings", "site"), (d) => {
+                if (d.exists()) {
+                    document.getElementById('siteName').innerText = d.data().name;
+                    if(d.data().logoUrl) { 
+                        document.getElementById('navLogo').src = d.data().logoUrl; 
+                        document.getElementById('navLogo').classList.remove('hidden'); 
+                    }
+                }
+            });
 
-    const pDoc = await getDoc(doc(db, "items", productId));
-    if (!pDoc.exists()) return;
-    productData = pDoc.data();
-    
-    const rolesSnap = await getDocs(collection(db, "roles"));
-    if(!rolesSnap.empty) {
-        const matchingRole = rolesSnap.docs.find(doc => 
-            doc.data().name.toLowerCase().trim() === userPosition.toLowerCase().trim()
-        );
-        roleBudgetLimit = matchingRole ? matchingRole.data().monthlyLimit : 0;
-    }
+            // 2. User Info
+            document.getElementById('displayStaffName').innerText = staffName;
+            document.getElementById('displayPosition').innerText = userPosition;
+            document.getElementById('displayUserImg').src = sessionStorage.getItem('userImage') || "https://cdn-icons-png.flaticon.com/512/149/149071.png";
 
-    const now = new Date();
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    
-    const qOrders = query(collection(db, "orders"), where("staffId", "==", staffId), where("createdAt", ">=", startOfMonth));
-    const orderSnap = await getDocs(qOrders);
-    
-    let itemAlreadyBoughtQty = 0;
-    currentMonthSpent = 0; 
-    orderSnap.forEach(o => {
-        const d = o.data();
-        if(d.status !== "Cancelled") {
-            currentMonthSpent += d.total || 0;
-            if(d.itemId === productId) itemAlreadyBoughtQty += d.qty;
-        }
-    });
+            // 3. Load Product Data
+            const pDoc = await getDoc(doc(db, "items", productId));
+            if (!pDoc.exists()) return;
+            productData = { ...pDoc.data(), id: pDoc.id };
+            
+            if(productData.comment) { 
+                document.getElementById('commentBox').classList.remove('hidden'); 
+                document.getElementById('productComment').innerText = productData.comment; 
+            }
 
-    let qtyLimitForRole = 0;
-    if (productData.limits) {
-        const roleKey = Object.keys(productData.limits).find(k => 
-            k.toLowerCase().trim() === userPosition.toLowerCase().trim()
-        );
-        qtyLimitForRole = roleKey ? productData.limits[roleKey] : 0;
-    }
+            // 4. Budget & Role Limits
+            const rolesSnap = await getDocs(collection(db, "roles"));
+            const matchingRole = rolesSnap.docs.find(d => d.data().name.toLowerCase().trim() === userPosition.toLowerCase().trim());
+            roleBudget = matchingRole ? matchingRole.data().monthlyLimit : 0;
 
-    finalMaxQtyAllowed = Math.min(qtyLimitForRole - itemAlreadyBoughtQty, productData.stock);
-    
-    document.getElementById('productName').innerText = productData.name;
-    document.getElementById('welfarePriceDisplay').innerText = "Rs. " + productData.welfarePrice;
-    document.getElementById('mrpPriceDisplay').innerText = "MRP: Rs. " + productData.mrpPrice;
-    document.getElementById('productImg').src = productData.imageUrl;
-    document.getElementById('unitSaving').innerText = "Rs. " + (productData.mrpPrice - productData.welfarePrice).toFixed(2);
-    document.getElementById('savingDisplay').innerText = "Rs. " + (productData.mrpPrice - productData.welfarePrice).toFixed(2);
-    document.getElementById('remainingBudgetDisplay').innerText = "Rs. " + (roleBudgetLimit - currentMonthSpent).toLocaleString();
-    document.getElementById('personalQtyLeft').innerText = finalMaxQtyAllowed;
-    document.getElementById('totalRoleLimit').innerText = qtyLimitForRole;
-    document.getElementById('roleBadge').innerText = userPosition + " Quota";
+            // Calculate spent amount this month
+            const now = new Date();
+            const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+            const q = query(collection(db, "orders"), where("staffId", "==", epfNumber), where("createdAt", ">=", startOfMonth));
+            const orders = await getDocs(q);
+            
+            let boughtQty = 0;
+            orders.forEach(o => {
+                const d = o.data();
+                if(d.status !== "Cancelled") {
+                    monthlySpent += d.total;
+                    d.items.forEach(i => { if(i.itemId === productId) boughtQty += i.qty; });
+                }
+            });
 
-    if (productData.stock <= 0) {
-        document.getElementById('stockAlert').innerText = "OUT OF STOCK";
-        document.getElementById('buyBtn').disabled = true;
-        document.getElementById('buyBtn').classList.add('opacity-50', 'bg-gray-500');
-        document.getElementById('buyBtn').innerText = "Out of Stock";
-    } else if (finalMaxQtyAllowed <= 0) {
-        document.getElementById('buyBtn').disabled = true;
-        document.getElementById('buyBtn').classList.add('opacity-50', 'bg-gray-500');
-        document.getElementById('buyBtn').innerText = "Limit Reached";
-        document.getElementById('stockAlert').innerText = "YOU HAVE REACHED YOUR MONTHLY LIMIT";
-    }
+            const roleLimit = productData.limits ? (productData.limits[userPosition] || 0) : 0;
+            maxAllowedQty = Math.min(roleLimit - boughtQty, productData.stock);
 
-    lucide.createIcons();
-}
+            // 5. Initial UI Render
+            document.getElementById('productName').innerText = productData.name;
+            document.getElementById('wPrice').innerText = "Rs. " + productData.welfarePrice.toLocaleString();
+            document.getElementById('mPrice').innerText = "MRP: Rs. " + productData.mrpPrice.toLocaleString();
+            document.getElementById('productImg').src = productData.imageUrl;
+            document.getElementById('savingDisplay').innerText = "Rs. " + (productData.mrpPrice - productData.welfarePrice).toLocaleString();
+            document.getElementById('remainingBudgetDisplay').innerText = "Rs. " + Math.max(0, roleBudget - monthlySpent).toLocaleString();
+            document.getElementById('personalQtyLeft').innerText = Math.max(0, maxAllowedQty);
+            document.getElementById('totalLimit').innerText = roleLimit;
+            document.getElementById('roleBadge').innerText = userPosition + " Quota";
 
-window.changeQty = (val) => {
-    const inp = document.getElementById('orderQty');
-    let v = parseInt(inp.value) + val;
-    if(v >= 1 && v <= finalMaxQtyAllowed) {
-        inp.value = v;
-    } else if (v > finalMaxQtyAllowed) {
-        alert("Maximum allowed for you: " + finalMaxQtyAllowed);
-    }
-};
+            if (productData.stock <= 0) updateStatus("Out of Stock", true, "ITEM CURRENTLY UNAVAILABLE");
+            else if (maxAllowedQty <= 0) updateStatus("Limit Reached", true, "YOU HAVE REACHED YOUR MONTHLY LIMIT");
+            
+            // 6. Sync Cart from Database
+            onSnapshot(doc(db, "user_carts", epfNumber), (cartDoc) => {
+                dbCartItems = cartDoc.exists() ? cartDoc.data().items : [];
+                updateCartUI();
+            });
 
-    document.getElementById('buyBtn').addEventListener('click', async () => {
-        const qty = parseInt(document.getElementById('orderQty').value);
-        const totalCost = productData.welfarePrice * qty;
-
-        if (currentMonthSpent + totalCost > roleBudgetLimit) {
-            alert("Order Failed: This purchase exceeds your monthly budget of Rs. " + roleBudgetLimit);
-            return;
+            lucide.createIcons();
         }
 
-        const btn = document.getElementById('buyBtn');
-        btn.disabled = true;
-        btn.innerText = "Processing...";
+        function updateStatus(text, disable, alertMsg) {
+            const btns = ['buyBtn', 'addCartBtn'];
+            btns.forEach(id => {
+                const b = document.getElementById(id);
+                b.disabled = disable;
+                if(disable) b.classList.add('opacity-50', 'grayscale');
+            });
+            document.getElementById('buyBtn').innerText = text;
+            if(alertMsg) document.getElementById('stockAlert').innerText = alertMsg;
+        }
 
-        try {
-            const orderData = {
-                staffId, staffName, userPosition,
-                itemName: productData.name,
-                itemId: productId,
-                qty,
-                price: productData.welfarePrice,
-                total: totalCost,
-                mrpTotal: productData.mrpPrice * qty,
-                savings: (productData.mrpPrice - productData.welfarePrice) * qty,
-                status: "Pending",
-                createdAt: new Date()
+        window.changeQty = (v) => {
+            const i = document.getElementById('orderQty');
+            let n = parseInt(i.value) + v;
+            if(n >= 1 && n <= maxAllowedQty) i.value = n;
+        }
+
+        window.toggleCart = () => {
+            document.getElementById('cartDrawer').classList.toggle('drawer-open');
+            document.getElementById('cartDrawer').classList.toggle('drawer-closed');
+            document.getElementById('cartOverlay').classList.toggle('hidden');
+        }
+
+        window.addToCart = async () => {
+            const qty = parseInt(document.getElementById('orderQty').value);
+            const newItem = { 
+                itemId: productData.id, 
+                name: productData.name, 
+                welfarePrice: productData.welfarePrice,
+                mrpPrice: productData.mrpPrice,
+                qty: qty,
+                imageUrl: productData.imageUrl
             };
 
-            const oRef = await addDoc(collection(db, "orders"), orderData);
-            lastOrderId = oRef.id;
+            const existingIdx = dbCartItems.findIndex(i => i.itemId === productData.id);
+            if(existingIdx > -1) {
+                dbCartItems[existingIdx].qty = Math.min(dbCartItems[existingIdx].qty + qty, maxAllowedQty);
+            } else {
+                dbCartItems.push(newItem);
+            }
 
-            await updateDoc(doc(db, "items", productId), {
-                stock: increment(-qty)
-            });
-
-            await addDoc(collection(db, "inventory_logs"), {
-                itemId: productId,
-                itemName: productData.name,
-                type: "OUT",
-                qty: qty,
-                balance: productData.stock - qty,
-                createdAt: new Date(),
-                note: `Order by ${staffName}`
-            });
-
-            document.getElementById('successOverlay').classList.remove('hidden');
-            lucide.createIcons();
-        } catch (e) {
-            alert("Error: " + e.message);
-            btn.disabled = false;
-            btn.innerText = "Place Order";
+            await setDoc(doc(db, "user_carts", epfNumber), { items: dbCartItems });
+            toggleCart();
         }
-    });
 
-    window.generateInvoice = () => {
-        const { jsPDF } = window.jspdf;
-        const doc = new jsPDF({ unit: 'mm', format: [100, 150] });
-        const qty = document.getElementById('orderQty').value;
-        const total = productData.welfarePrice * qty;
-        const savings = (productData.mrpPrice - productData.welfarePrice) * qty;
+        window.updateCartUI = () => {
+            const container = document.getElementById('cartItems');
+            const totalDisplay = document.getElementById('cartTotal');
+            const countDisplay = document.getElementById('cartCount');
+            container.innerHTML = '';
+            let total = 0;
+            
+            dbCartItems.forEach((i, index) => {
+                total += (i.welfarePrice * i.qty);
+                container.innerHTML += `
+                    <div class="bg-emerald-50 p-4 rounded-2xl border border-emerald-100 flex justify-between items-center animate-scale">
+                        <div class="flex gap-3 items-center">
+                            <img src="${i.imageUrl}" class="w-10 h-10 rounded-lg object-cover">
+                            <div>
+                                <h5 class="font-black text-xs text-[#064E3B]">${i.name}</h5>
+                                <p class="text-[10px] font-bold text-emerald-600">Qty: ${i.qty} x Rs.${i.welfarePrice.toLocaleString()}</p>
+                            </div>
+                        </div>
+                        <button onclick="removeItem(${index})" class="p-2 bg-white rounded-xl text-red-500 shadow-sm"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                    </div>`;
+            });
+            
+            countDisplay.innerText = dbCartItems.length;
+            totalDisplay.innerText = "Rs. " + total.toLocaleString();
+            document.getElementById('cartCheckoutBtn').disabled = dbCartItems.length === 0 || (monthlySpent + total > roleBudget);
+            
+            if(monthlySpent + total > roleBudget) totalDisplay.classList.add('text-red-500');
+            else totalDisplay.classList.remove('text-red-500');
 
-        doc.setFont("helvetica", "bold");
-        doc.text("PMM WELFARE SHOP", 50, 15, { align: "center" });
-        doc.setFontSize(8);
-        doc.text("------------------------------------------", 50, 20, { align: "center" });
-        
-        doc.setFontSize(10);
-        doc.text(`Order ID: #${lastOrderId.substring(0,8)}`, 10, 30);
-        doc.text(`Date: ${new Date().toLocaleDateString()}`, 10, 35);
-        doc.text(`Staff: ${staffName}`, 10, 45);
-        
-        doc.text("Item Details:", 10, 60);
-        doc.setFont("helvetica", "normal");
-        doc.text(`${productData.name}`, 10, 65);
-        doc.text(`Qty: ${qty} x Rs. ${productData.welfarePrice}`, 10, 70);
-        
-        doc.setFont("helvetica", "bold");
-        doc.text(`Total Price: Rs. ${total.toLocaleString()}`, 10, 80);
-        
-        doc.setTextColor(5, 150, 105); // Emerald Color
-        doc.text(`Total Savings: Rs. ${savings.toLocaleString()}`, 10, 90);
-        
-        doc.setTextColor(0, 0, 0);
-        doc.setFontSize(8);
-        doc.text("Status: PENDING APPROVAL", 50, 115, { align: "center" });
-        doc.text("Thank you for using the Welfare Shop!", 50, 120, { align: "center" });
-        
-        doc.save(`Receipt_${lastOrderId.substring(0,5)}.pdf`);
-    };
+            lucide.createIcons();
+        }
 
-    initPage();
-</script>
+        window.removeItem = async (idx) => {
+            dbCartItems.splice(idx, 1);
+            await setDoc(doc(db, "user_carts", epfNumber), { items: dbCartItems });
+        }
+
+        window.checkout = async (type) => {
+            const checkoutItems = type === 'direct' ? [{ 
+                itemId: productData.id, 
+                name: productData.name, 
+                welfarePrice: productData.welfarePrice,
+                mrpPrice: productData.mrpPrice,
+                qty: parseInt(document.getElementById('orderQty').value) 
+            }] : dbCartItems;
+
+            if(checkoutItems.length === 0) return;
+
+            const totalCost = checkoutItems.reduce((acc, i) => acc + (i.welfarePrice * i.qty), 0);
+            const totalSavings = checkoutItems.reduce((acc, i) => acc + ((i.mrpPrice - i.welfarePrice) * i.qty), 0);
+            
+            if(monthlySpent + totalCost > roleBudget) return alert("Total exceeds your monthly budget!");
+
+            const btn = type === 'direct' ? document.getElementById('buyBtn') : document.getElementById('cartCheckoutBtn');
+            const originalText = btn.innerText;
+            btn.disabled = true;
+            btn.innerText = "Processing...";
+
+            try {
+                const orderData = {
+                    staffId: epfNumber, staffName, userPosition,
+                    items: checkoutItems, total: totalCost, savings: totalSavings,
+                    status: "Pending", createdAt: new Date()
+                };
+
+                const oRef = await addDoc(collection(db, "orders"), orderData);
+                lastOrderRef = { id: oRef.id, ...orderData };
+
+                // Inventory Updates & Logs
+                for(let i of checkoutItems) {
+                    const iRef = doc(db, "items", i.itemId);
+                    await updateDoc(iRef, { stock: increment(-i.qty) });
+                    
+                    const snap = await getDoc(iRef);
+                    if(snap.exists() && snap.data().stock <= 0) await updateDoc(iRef, { status: "Inactive" });
+
+                    await addDoc(collection(db, "inventory_logs"), {
+                        itemId: i.itemId, itemName: i.name, type: "OUT", qty: i.qty,
+                        balance: snap.exists() ? snap.data().stock : 0,
+                        createdAt: new Date(),
+                        note: `Order #${oRef.id.slice(0,8)} by ${staffName}`
+                    });
+                }
+
+                if(type === 'cart') await deleteDoc(doc(db, "user_carts", epfNumber));
+
+                document.getElementById('successOverlay').classList.remove('hidden');
+                lucide.createIcons();
+            } catch (e) { 
+                alert("Error: " + e.message); 
+                btn.disabled = false; 
+                btn.innerText = originalText;
+            }
+        }
+
+        // --- PDF GENERATOR ---
+        window.generateInvoice = () => {
+            if(!lastOrderRef) return;
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF({ unit: 'mm', format: [100, 160] });
+            const siteTitle = document.getElementById('siteName').innerText;
+
+            doc.setFont("helvetica", "bold");
+            doc.text(siteTitle.toUpperCase(), 50, 15, { align: "center" });
+            doc.setFontSize(8);
+            doc.text("------------------------------------------", 50, 20, { align: "center" });
+            
+            doc.setFontSize(9);
+            doc.text(`Order ID: #${lastOrderRef.id.substring(0,10)}`, 10, 30);
+            doc.text(`Date: ${new Date().toLocaleString()}`, 10, 36);
+            doc.text(`Staff: ${staffName} (${epfNumber})`, 10, 42);
+            
+            doc.text("Item(s) Details:", 10, 55);
+            doc.setFont("helvetica", "normal");
+            
+            let y = 62;
+            lastOrderRef.items.forEach(item => {
+                doc.text(`${item.name}`, 10, y);
+                doc.text(`${item.qty} x Rs. ${item.welfarePrice.toLocaleString()}`, 80, y, { align: "right" });
+                y += 6;
+            });
+
+            doc.setFont("helvetica", "bold");
+            doc.setFontSize(10);
+            y += 4;
+            doc.text(`Total Price: Rs. ${lastOrderRef.total.toLocaleString()}`, 10, y);
+            
+            doc.setTextColor(5, 150, 105);
+            y += 8;
+            doc.text(`Total Savings: Rs. ${lastOrderRef.savings.toLocaleString()}`, 10, y);
+            
+            doc.setTextColor(0, 0, 0);
+            doc.setFontSize(8);
+            doc.text("Status: PENDING APPROVAL", 50, 140, { align: "center" });
+            doc.text("Present this at the counter for collection.", 50, 145, { align: "center" });
+            
+            doc.save(`Receipt_${lastOrderRef.id.substring(0,5)}.pdf`);
+        };
+
+        init();
+    </script>
 </body>
 </html>
