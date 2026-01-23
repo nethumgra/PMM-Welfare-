@@ -6,8 +6,8 @@
     <title>My Orders - PMM Welfare Shop</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://unpkg.com/lucide@latest"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
-        /* Custom scrollbar matching the theme */
         ::-webkit-scrollbar { width: 8px; }
         ::-webkit-scrollbar-track { background: #F0FDF4; }
         ::-webkit-scrollbar-thumb { background: #059669; border-radius: 10px; }
@@ -67,14 +67,13 @@
                         <tr class="bg-[#F0FDF4] text-[#059669] text-[10px] uppercase tracking-widest">
                             <th class="p-8">Date</th>
                             <th class="p-8">Item Details</th>
-                            <th class="p-8">Welfare Price</th>
-                            <th class="p-8">Your Saving</th>
+                            <th class="p-8">Total (Full Pack)</th>
+                            <th class="p-8">Full Saving</th>
                             <th class="p-8 text-center">Status</th>
                             <th class="p-8 text-right">Action</th>
                         </tr>
                     </thead>
-                    <tbody id="staffOrdersBody" class="text-sm font-medium text-[#064E3B]">
-                        </tbody>
+                    <tbody id="staffOrdersBody" class="text-sm font-medium text-[#064E3B]"></tbody>
                 </table>
             </div>
         </div>
@@ -107,22 +106,30 @@
         async function loadMyOrders() {
             const now = new Date();
             const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-            
             let budgetLimit = 0;
-            const rolesSnap = await getDocs(collection(db, "roles"));
-            if(!rolesSnap.empty) {
-                const matchingRole = rolesSnap.docs.find(doc => 
-                    doc.data().name.toLowerCase().trim() === userPosition.toLowerCase().trim()
-                );
-                budgetLimit = matchingRole ? matchingRole.data().monthlyLimit : 0;
-            }
+
+            try {
+                const userQuery = query(collection(db, "users"), where("epfNumber", "==", staffId));
+                const userSnap = await getDocs(userQuery);
+                if (!userSnap.empty) {
+                    const userData = userSnap.docs[0].data();
+                    if (userData.monthlyLimit && userData.monthlyLimit > 0) {
+                        budgetLimit = userData.monthlyLimit;
+                    } else {
+                        const rolesSnap = await getDocs(collection(db, "roles"));
+                        const matchingRole = rolesSnap.docs.find(d => 
+                            d.data().name.toLowerCase().trim() === userPosition.toLowerCase().trim()
+                        );
+                        budgetLimit = matchingRole ? matchingRole.data().monthlyLimit : 0;
+                    }
+                }
+            } catch (e) { console.error("Budget Error:", e); }
 
             const q = query(collection(db, "orders"), where("staffId", "==", staffId), orderBy("createdAt", "desc"));
             
             onSnapshot(q, (snap) => {
                 const tableBody = document.getElementById('staffOrdersBody');
                 tableBody.innerHTML = '';
-                
                 let spentThisMonth = 0;
                 let savingsThisMonth = 0;
                 let totalItemsCount = 0;
@@ -132,25 +139,40 @@
                     const orderId = d.id;
                     const orderDate = order.createdAt?.toDate();
                     const status = order.status || "Pending";
+
+                    const itemsListHtml = order.items.map(item => `
+                        <div class="flex justify-between text-[10px] mb-1 pb-1 border-b border-gray-50 last:border-0">
+                            <span class="font-bold">${item.name} (x${item.qty})</span>
+                            <span class="font-black uppercase ${item.status === 'Dispatched' || item.status === 'Completed' ? 'text-blue-600' : 'text-amber-500'}">
+                                ${item.status || 'Pending'}
+                            </span>
+                        </div>
+                    `).join('');
                     
                     if(orderDate >= startOfMonth && status !== "Cancelled") {
-                        spentThisMonth += order.total || 0;
-                        savingsThisMonth += order.savings || 0;
-                        totalItemsCount += order.qty || 0; 
+                        order.items.forEach(item => {
+                            if(item.status === "Dispatched" || item.status === "Completed") {
+                                spentThisMonth += (item.welfarePrice * item.qty);
+                                savingsThisMonth += ((item.mrpPrice - item.welfarePrice) * item.qty);
+                                totalItemsCount += item.qty;
+                            }
+                        });
                     }
 
-                    let statusStyle = "bg-emerald-100 text-emerald-600";
+                    let statusStyle = "bg-amber-100 text-amber-600";
                     if(status === "Completed") statusStyle = "bg-green-100 text-green-700";
                     else if(status === "Dispatched") statusStyle = "bg-blue-100 text-blue-600";
                     else if(status === "Cancelled") statusStyle = "bg-red-100 text-red-600";
-                    else if(status === "Pending") statusStyle = "bg-amber-100 text-amber-600";
+
+                    // අයිටම් එකක් හෝ Dispatch වෙලා තියෙනවාදැයි පරීක්ෂා කිරීම
+                    const hasDispatchedItems = order.items.some(i => i.status === "Dispatched" || i.status === "Completed");
 
                     tableBody.innerHTML += `
                         <tr class="border-b border-[#F0FDF4] hover:bg-[#F0FDF4]/50 transition">
                             <td class="p-8 text-[11px] font-bold text-[#059669]">${orderDate?.toLocaleDateString()}</td>
                             <td class="p-8">
-                                <p class="font-black text-[#064E3B]">${order.itemName}</p>
-                                <p class="text-[9px] text-[#059669] uppercase">Qty: ${order.qty} | #${orderId.substring(0,8)}</p>
+                                <p class="font-black text-[#064E3B] mb-2 uppercase text-sm tracking-widest">${order.orderNo || 'Pack #' + orderId.substring(0,8)}</p>
+                                <div class="bg-gray-50 p-3 rounded-2xl border border-gray-100">${itemsListHtml}</div>
                             </td>
                             <td class="p-8 font-black text-[#064E3B]">Rs. ${order.total.toLocaleString()}</td>
                             <td class="p-8 font-black text-emerald-600 italic">Rs. ${order.savings.toLocaleString()}</td>
@@ -160,12 +182,20 @@
                                 </span>
                             </td>
                             <td class="p-8 text-right">
-                                ${status === "Pending" ? `
-                                    <button onclick="cancelOrder('${orderId}', '${order.itemId}', ${order.qty}, '${order.itemName}')" 
-                                            class="text-red-500 hover:text-red-700 transition flex items-center gap-1 ml-auto font-bold text-[10px] uppercase">
-                                        <i data-lucide="x-circle" class="w-4 h-4"></i> Cancel
-                                    </button>
-                                ` : '-'}
+                                <div class="flex flex-col gap-2 items-end">
+                                    ${hasDispatchedItems ? `
+                                        <button onclick="downloadDispatchedInvoice('${orderId}')" 
+                                                class="bg-blue-600 text-white px-3 py-2 rounded-xl font-black text-[9px] uppercase hover:bg-blue-700 transition flex items-center gap-1 shadow-md">
+                                            <i data-lucide="download" class="w-3 h-3"></i> Download Invoice
+                                        </button>
+                                    ` : ''}
+                                    ${status === "Pending" ? `
+                                        <button onclick="cancelOrderPack('${orderId}')" 
+                                                class="text-red-500 hover:text-red-700 transition flex items-center gap-1 font-bold text-[10px] uppercase">
+                                            <i data-lucide="x-circle" class="w-4 h-4"></i> Cancel Pack
+                                        </button>
+                                    ` : ''}
+                                </div>
                             </td>
                         </tr>`;
                 });
@@ -176,42 +206,103 @@
                 
                 const percent = budgetLimit > 0 ? (spentThisMonth / budgetLimit) * 100 : 0;
                 document.getElementById('budgetBar').style.width = Math.min(percent, 100) + "%";
-                if(percent > 90) {
-                    document.getElementById('budgetBar').classList.remove('bg-[#059669]');
-                    document.getElementById('budgetBar').classList.add('bg-red-500');
-                } else {
-                    document.getElementById('budgetBar').classList.remove('bg-red-500');
-                    document.getElementById('budgetBar').classList.add('bg-[#059669]');
-                }
+                const bar = document.getElementById('budgetBar');
+                if(percent > 90) bar.classList.replace('bg-[#059669]', 'bg-red-500');
+                else bar.classList.replace('bg-red-500', 'bg-[#059669]');
 
                 lucide.createIcons();
             });
         }
 
-        window.cancelOrder = async (orderId, itemId, qty, itemName) => {
-            if (!confirm(`Are you sure you want to cancel the order for ${itemName}?`)) return;
+        // --- Dispatch වුණු අයිටම් වලට පමණක් අදාළ ඉන්වොයිස් ජනනය කිරීම ---
+        window.downloadDispatchedInvoice = async (orderId) => {
+            const orderRef = doc(db, "orders", orderId);
+            const snap = await getDoc(orderRef);
+            if (!snap.exists()) return;
+            
+            const order = snap.data();
+            const dispatchedItems = order.items.filter(i => i.status === "Dispatched" || i.status === "Completed");
 
-            try {
-                await updateDoc(doc(db, "orders", orderId), { status: "Cancelled" });
-                const itemRef = doc(db, "items", itemId);
-                const itemSnap = await getDoc(itemRef);
-                const currentStock = itemSnap.exists() ? itemSnap.data().stock : 0;
-
-                await updateDoc(itemRef, { stock: increment(qty) });
-                await addDoc(collection(db, "inventory_logs"), {
-                    itemId,
-                    itemName,
-                    type: "IN",
-                    qty,
-                    balance: currentStock + qty,
-                    createdAt: new Date(),
-                    note: `Order #${orderId.substring(0,8)} was cancelled.`
-                });
-
-                alert("Order successfully cancelled!");
-            } catch (e) {
-                alert("Error cancelling order: " + e.message);
+            if (dispatchedItems.length === 0) {
+                alert("කිසිදු භාණ්ඩයක් Dispatch කර නොමැත.");
+                return;
             }
+
+            const { jsPDF } = window.jspdf;
+            const pdf = new jsPDF({ unit: 'mm', format: [100, 150] });
+
+            // Design & Header
+            pdf.setFont("helvetica", "bold");
+            pdf.setTextColor(5, 150, 105); 
+            pdf.text("PMM WELFARE SHOP", 50, 15, { align: "center" });
+            pdf.setFontSize(8);
+            pdf.text("Official Dispatched Receipt", 50, 20, { align: "center" });
+
+            pdf.setTextColor(0, 0, 0); pdf.setFontSize(9);
+            pdf.text(`Order No: #${order.orderNo || orderId.substring(0,8)}`, 10, 35);
+            pdf.text(`Staff Name: ${order.staffName}`, 10, 42);
+            pdf.text(`Date: ${new Date().toLocaleDateString()}`, 10, 48);
+
+            pdf.line(10, 52, 90, 52);
+            pdf.setFont("helvetica", "bold");
+            pdf.text("Items (Dispatched)", 10, 58);
+            pdf.text("Price", 90, 58, { align: "right" });
+            pdf.line(10, 60, 90, 60);
+
+            let y = 68;
+            let dispatchedTotal = 0;
+            let dispatchedSavings = 0;
+
+            pdf.setFont("helvetica", "normal");
+            dispatchedItems.forEach(item => {
+                const subTotal = item.welfarePrice * item.qty;
+                const saving = (item.mrpPrice - item.welfarePrice) * item.qty;
+                dispatchedTotal += subTotal;
+                dispatchedSavings += saving;
+
+                pdf.text(`${item.name} (x${item.qty})`, 10, y);
+                pdf.text(`Rs. ${subTotal.toLocaleString()}`, 90, y, { align: "right" });
+                y += 8;
+            });
+
+            pdf.line(10, y, 90, y);
+            pdf.setFont("helvetica", "bold");
+            pdf.setFontSize(11);
+            pdf.text(`TOTAL PAID: Rs. ${dispatchedTotal.toLocaleString()}`, 10, y + 10);
+            
+            pdf.setFontSize(9);
+            pdf.setTextColor(5, 150, 105);
+            pdf.text(`Welfare Savings: Rs. ${dispatchedSavings.toLocaleString()}`, 10, y + 17);
+
+            pdf.setFontSize(7);
+            pdf.setTextColor(150, 150, 150);
+            pdf.text("This receipt is issued only for dispatched items.", 50, 140, { align: "center" });
+
+            pdf.save(`Invoice_${order.orderNo || orderId.substring(0,5)}.pdf`);
+        };
+
+        window.cancelOrderPack = async (orderId) => {
+            if (!confirm(`Are you sure you want to cancel this entire order pack? Stock will be restored for all items.`)) return;
+            try {
+                const orderRef = doc(db, "orders", orderId);
+                const orderSnap = await getDoc(orderRef);
+                const orderData = orderSnap.data();
+                await updateDoc(orderRef, { status: "Cancelled" });
+                for (const item of orderData.items) {
+                    const itemRef = doc(db, "items", item.itemId);
+                    await updateDoc(itemRef, { stock: increment(item.qty) });
+                    await addDoc(collection(db, "inventory_logs"), {
+                        itemId: item.itemId,
+                        itemName: item.name,
+                        type: "RETURN",
+                        qty: item.qty,
+                        processedBy: "System (Auto-Cancel)",
+                        createdAt: new Date(),
+                        note: `Pack #${orderId.substring(0,8)} was cancelled by Staff.`
+                    });
+                }
+                alert("Order Pack cancelled and stock restored successfully!");
+            } catch (e) { alert("Cancellation Error: " + e.message); }
         };
 
         loadMyOrders();

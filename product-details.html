@@ -158,7 +158,12 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getFirestore, doc, getDoc, getDocs, collection, addDoc, query, where, updateDoc, increment, onSnapshot, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+import { 
+    getFirestore, doc, getDoc, getDocs, collection, addDoc, 
+    query, where, updateDoc, increment, onSnapshot, setDoc, 
+    deleteDoc, runTransaction 
+} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
 
         const firebaseConfig = {
             apiKey: "AIzaSyB3jlpc_vbUydda2XpDj5Xd1J8kVei9v8U",
@@ -343,63 +348,90 @@
             await setDoc(doc(db, "user_carts", epfNumber), { items: dbCartItems });
         }
 
-        window.checkout = async (type) => {
-            const checkoutItems = type === 'direct' ? [{ 
-                itemId: productData.id, 
-                name: productData.name, 
-                welfarePrice: productData.welfarePrice,
-                mrpPrice: productData.mrpPrice,
-                qty: parseInt(document.getElementById('orderQty').value) 
-            }] : dbCartItems;
+      window.checkout = async (type) => {
+    const checkoutItems = type === 'direct' ? [{ 
+        itemId: productData.id, 
+        name: productData.name, 
+        welfarePrice: productData.welfarePrice,
+        mrpPrice: productData.mrpPrice,
+        qty: parseInt(document.getElementById('orderQty').value) 
+    }] : dbCartItems;
 
-            if(checkoutItems.length === 0) return;
+    if(checkoutItems.length === 0) return;
 
-            const totalCost = checkoutItems.reduce((acc, i) => acc + (i.welfarePrice * i.qty), 0);
-            const totalSavings = checkoutItems.reduce((acc, i) => acc + ((i.mrpPrice - i.welfarePrice) * i.qty), 0);
-            
-            if(monthlySpent + totalCost > roleBudget) return alert("Total exceeds your monthly budget!");
+    const totalCost = checkoutItems.reduce((acc, i) => acc + (i.welfarePrice * i.qty), 0);
+    const totalSavings = checkoutItems.reduce((acc, i) => acc + ((i.mrpPrice - i.welfarePrice) * i.qty), 0);
+    
+    if(monthlySpent + totalCost > roleBudget) return alert("Total exceeds your monthly budget!");
 
-            const btn = type === 'direct' ? document.getElementById('buyBtn') : document.getElementById('cartCheckoutBtn');
-            const originalText = btn.innerText;
-            btn.disabled = true;
-            btn.innerText = "Processing...";
+    const btn = type === 'direct' ? document.getElementById('buyBtn') : document.getElementById('cartCheckoutBtn');
+    const originalText = btn.innerText;
+    btn.disabled = true;
+    btn.innerText = "Processing...";
 
-            try {
-                const orderData = {
-                    staffId: epfNumber, staffName, userPosition,
-                    items: checkoutItems, total: totalCost, savings: totalSavings,
-                    status: "Pending", createdAt: new Date()
-                };
+    try {
+        // --- SERIAL NUMBER GENERATOR START ---
+        const counterRef = doc(db, "settings", "orderCounter");
+        let newNo = 1001; // මුල්ම ඕඩර් එක ආරම්භ වන අංකය
 
-                const oRef = await addDoc(collection(db, "orders"), orderData);
-                lastOrderRef = { id: oRef.id, ...orderData };
-
-                // Inventory Updates & Logs
-                for(let i of checkoutItems) {
-                    const iRef = doc(db, "items", i.itemId);
-                    await updateDoc(iRef, { stock: increment(-i.qty) });
-                    
-                    const snap = await getDoc(iRef);
-                    if(snap.exists() && snap.data().stock <= 0) await updateDoc(iRef, { status: "Inactive" });
-
-                    await addDoc(collection(db, "inventory_logs"), {
-                        itemId: i.itemId, itemName: i.name, type: "OUT", qty: i.qty,
-                        balance: snap.exists() ? snap.data().stock : 0,
-                        createdAt: new Date(),
-                        note: `Order #${oRef.id.slice(0,8)} by ${staffName}`
-                    });
-                }
-
-                if(type === 'cart') await deleteDoc(doc(db, "user_carts", epfNumber));
-
-                document.getElementById('successOverlay').classList.remove('hidden');
-                lucide.createIcons();
-            } catch (e) { 
-                alert("Error: " + e.message); 
-                btn.disabled = false; 
-                btn.innerText = originalText;
+        await runTransaction(db, async (transaction) => {
+            const counterSnap = await transaction.get(counterRef);
+            if (!counterSnap.exists()) {
+                transaction.set(counterRef, { lastNumber: 1001 });
+            } else {
+                newNo = counterSnap.data().lastNumber + 1;
+                transaction.update(counterRef, { lastNumber: newNo });
             }
+        });
+
+        const formattedOrderNo = "ORD-" + newNo; 
+        // --- SERIAL NUMBER GENERATOR END ---
+
+        const orderData = {
+            orderNo: formattedOrderNo, // අලුත් අංකය මෙතනට එකතු කළා
+            staffId: epfNumber, 
+            staffName, 
+            userPosition,
+            items: checkoutItems, 
+            total: totalCost, 
+            savings: totalSavings,
+            status: "Pending", 
+            createdAt: new Date()
+        };
+
+        const oRef = await addDoc(collection(db, "orders"), orderData);
+        lastOrderRef = { id: oRef.id, ...orderData };
+
+        // Inventory Updates & Logs
+        for(let i of checkoutItems) {
+            const iRef = doc(db, "items", i.itemId);
+            await updateDoc(iRef, { stock: increment(-i.qty) });
+            
+            const snap = await getDoc(iRef);
+            if(snap.exists() && snap.data().stock <= 0) await updateDoc(iRef, { status: "Inactive" });
+
+            await addDoc(collection(db, "inventory_logs"), {
+                itemId: i.itemId, 
+                itemName: i.name, 
+                type: "OUT", 
+                qty: i.qty,
+                balance: snap.exists() ? snap.data().stock : 0,
+                createdAt: new Date(),
+                note: `Order #${formattedOrderNo} by ${staffName}` // මෙතනත් අලුත් අංකය භාවිතා කළා
+            });
         }
+
+        if(type === 'cart') await deleteDoc(doc(db, "user_carts", epfNumber));
+
+        document.getElementById('successOverlay').classList.remove('hidden');
+        lucide.createIcons();
+    } catch (e) { 
+        console.error("Checkout Error:", e);
+        alert("Error: " + e.message); 
+        btn.disabled = false; 
+        btn.innerText = originalText;
+    }
+}
 
         // --- PDF GENERATOR ---
         window.generateInvoice = () => {
