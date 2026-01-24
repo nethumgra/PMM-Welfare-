@@ -12,6 +12,7 @@
         ::-webkit-scrollbar-thumb { background: #059669; border-radius: 10px; }
     </style>
     <script>
+        // ලොගින් වෙලා නැත්නම් ආපහු හරවා යැවීම
         if (!sessionStorage.getItem('epfNumber') && !sessionStorage.getItem('staffId')) { 
             window.location.href = "index.html"; 
         }
@@ -53,8 +54,7 @@
         </div>
 
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-10">
-            <div class="lg:col-span-2 space-y-6" id="cartContainer">
-                </div>
+            <div class="lg:col-span-2 space-y-6" id="cartContainer"></div>
 
             <div class="lg:col-span-1">
                 <div class="bg-white p-8 rounded-[3rem] shadow-xl border border-[#DCFCE7] sticky top-32">
@@ -90,7 +90,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getFirestore, doc, getDoc, getDocs, collection, addDoc, query, where, updateDoc, increment, onSnapshot, setDoc, deleteDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getFirestore, doc, getDoc, getDocs, collection, addDoc, query, where, updateDoc, increment, onSnapshot, setDoc, deleteDoc, runTransaction } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyB3jlpc_vbUydda2XpDj5Xd1J8kVei9v8U",
@@ -141,7 +141,7 @@
                 if(o.data().status !== "Cancelled") monthlySpent += o.data().total;
             });
 
-            // 3. Real-time Cart Listener (This links it to Product Details)
+            // 3. Real-time Cart Sync
             onSnapshot(doc(db, "user_carts", epfNumber), (cartDoc) => {
                 dbCartItems = cartDoc.exists() ? cartDoc.data().items : [];
                 renderCart();
@@ -190,8 +190,6 @@
         window.updateQty = async (index, val) => {
             const item = dbCartItems[index];
             const newQty = item.qty + val;
-
-            // Fetch live item data for stock check
             const itemSnap = await getDoc(doc(db, "items", item.itemId));
             const liveStock = itemSnap.exists() ? itemSnap.data().stock : 0;
 
@@ -236,21 +234,38 @@
 
         window.processCheckout = async () => {
             const checkoutBtn = document.getElementById('checkoutBtn');
-            const originalText = checkoutBtn.innerText;
-            checkoutBtn.innerText = "Processing...";
+            checkoutBtn.innerText = "Processing Order...";
             checkoutBtn.disabled = true;
 
             try {
+                // --- SERIAL ORDER NUMBER GENERATOR ---
+                const counterRef = doc(db, "settings", "orderCounter");
+                let newNo = 1001;
+
+                await runTransaction(db, async (transaction) => {
+                    const counterSnap = await transaction.get(counterRef);
+                    if (!counterSnap.exists()) {
+                        transaction.set(counterRef, { lastNumber: 1001 });
+                    } else {
+                        newNo = counterSnap.data().lastNumber + 1;
+                        transaction.update(counterRef, { lastNumber: newNo });
+                    }
+                });
+
+                const formattedOrderNo = "ORD-" + newNo;
+
                 const orderData = {
+                    orderNo: formattedOrderNo, // අලුත් අංකය මෙතනට එකතු කළා
                     staffId: epfNumber,
                     staffName: sessionStorage.getItem('staffName'),
                     userPosition: userPosition,
                     items: dbCartItems.map(i => ({ 
                         itemId: i.itemId, 
-                        itemName: i.name, 
+                        name: i.name, 
                         qty: i.qty, 
-                        price: i.welfarePrice,
-                        mrp: i.mrpPrice 
+                        welfarePrice: i.welfarePrice,
+                        mrpPrice: i.mrpPrice,
+                        status: "Pending" // අයිටම් එකේ තත්ත්වය
                     })),
                     total: dbCartItems.reduce((acc, i) => acc + (i.welfarePrice * i.qty), 0),
                     savings: dbCartItems.reduce((acc, i) => acc + ((i.mrpPrice - i.welfarePrice) * i.qty), 0),
@@ -260,7 +275,7 @@
 
                 const oRef = await addDoc(collection(db, "orders"), orderData);
 
-                // Update Stock and Logs
+                // ස්ටොක් සහ ඉන්වෙන්ටරි ලොග්ස් යාවත්කාලීන කිරීම
                 for(let item of dbCartItems) {
                     const itemRef = doc(db, "items", item.itemId);
                     await updateDoc(itemRef, { stock: increment(-item.qty) });
@@ -277,17 +292,17 @@
                         qty: item.qty, 
                         balance: snap.exists() ? snap.data().stock : 0, 
                         createdAt: new Date(), 
-                        note: `Cart Order #${oRef.id.slice(0,8)}`
+                        note: `Order #${formattedOrderNo} by Cart`
                     });
                 }
 
-                // Delete cart from database after successful order
+                // සාර්ථක වූ පසු කාර්ට් එක ඩේටාබේස් එකෙන් මැකීම
                 await deleteDoc(doc(db, "user_carts", epfNumber));
                 document.getElementById('successOverlay').classList.remove('hidden');
                 lucide.createIcons();
             } catch (e) {
-                alert("Error: " + e.message);
-                checkoutBtn.innerText = originalText;
+                alert("Checkout Error: " + e.message);
+                checkoutBtn.innerText = "Confirm & Place Order";
                 checkoutBtn.disabled = false;
             }
         };
