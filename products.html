@@ -8,7 +8,6 @@
     <script src="https://unpkg.com/lucide@latest"></script>
     
     <script>
-        // Check login with EPF Number
         if (!sessionStorage.getItem('epfNumber')) {
             window.location.href = "index.html";
         }
@@ -17,8 +16,6 @@
         .product-card:hover { transform: translateY(-8px); }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
         .animate-fade { animation: fadeIn 0.4s ease-out forwards; }
-        
-        /* Custom Scrollbar */
         ::-webkit-scrollbar { width: 8px; }
         ::-webkit-scrollbar-track { background: #F0FDF4; }
         ::-webkit-scrollbar-thumb { background: #059669; border-radius: 10px; }
@@ -50,7 +47,9 @@
                     <p id="displayPosition" class="text-[9px] text-[#059669] font-black uppercase tracking-widest italic">Role</p>
                 </div>
                 <img id="staffProfileImg" src="https://cdn-icons-png.flaticon.com/512/149/149071.png" class="w-10 h-10 rounded-xl object-cover border-2 border-white shadow-sm">
-                <button onclick="logout()" class="p-2 text-red-500 hover:text-red-700 transition"><i data-lucide="log-out" class="w-5 h-5"></i></button>
+               <button onclick="toggleLogoutModal()" class="p-2 text-red-500 hover:text-red-700 transition">
+    <i data-lucide="log-out" class="w-5 h-5"></i>
+</button>
             </div>
         </div>
     </div>
@@ -60,7 +59,6 @@
     <div id="promoBanner" class="w-full h-64 md:h-80 rounded-[3.5rem] relative overflow-hidden flex items-center p-8 md:p-16 shadow-2xl bg-[#064E3B]">
         <img id="bannerImgMobile" class="absolute inset-0 w-full h-full object-cover md:hidden opacity-60" src="" alt="">
         <img id="bannerImgDesktop" class="absolute inset-0 w-full h-full object-cover hidden md:block opacity-60" src="" alt="">
-        
         <div class="relative z-10 max-w-lg">
             <h2 id="bannerTitle" class="text-white text-4xl md:text-6xl font-black mb-3 leading-none drop-shadow-lg">Exclusive Welfare</h2>
             <p id="bannerSub" class="text-white text-lg font-bold drop-shadow-md">Benefit options for your position.</p>
@@ -85,8 +83,7 @@
             </div>
         </div>
 
-        <div id="productGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
-            </div>
+        <div id="productGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8"></div>
 
         <div id="noResults" class="hidden text-center py-20">
             <i data-lucide="search-x" class="text-[#059669] w-16 h-16 mx-auto mb-4 opacity-20"></i>
@@ -97,7 +94,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-        import { getFirestore, collection, onSnapshot, doc, query, where, getDocs } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+        import { getFirestore, collection, onSnapshot, doc, query, where, getDocs, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyB3jlpc_vbUydda2XpDj5Xd1J8kVei9v8U",
@@ -119,7 +116,13 @@
         document.getElementById('displayPosition').innerText = userPosition;
         if(userImg) document.getElementById('staffProfileImg').src = userImg;
 
-        // Load Global Settings (Name & Logo)
+        // Cart Badge Real-time Sync
+        onSnapshot(doc(db, "user_carts", epfNumber), (doc) => {
+            const items = doc.exists() ? doc.data().items : [];
+            document.getElementById('cartCount').innerText = items.length;
+        });
+
+        // Load Global Settings
         onSnapshot(doc(db, "settings", "site"), (d) => {
             if (d.exists()) {
                 document.getElementById('siteName').innerText = d.data().name;
@@ -142,13 +145,46 @@
             }
         });
 
+        // Add to Cart Direct Function
+        window.addToCartDirect = async (event, itemJson) => {
+            event.stopPropagation(); // Card එක click වෙන එක නවත්තනවා
+            const item = JSON.parse(itemJson);
+            
+            try {
+                const cartRef = doc(db, "user_carts", epfNumber);
+                const cartSnap = await getDoc(cartRef);
+                let cartItems = cartSnap.exists() ? cartSnap.data().items : [];
+
+                const existingIdx = cartItems.findIndex(i => i.itemId === item.id);
+                if (existingIdx > -1) {
+                    // දැනටමත් තියෙනවා නම් තව 1ක් එකතු කරනවා
+                    cartItems[existingIdx].qty += 1;
+                } else {
+                    // අලුත් අයිටම් එකක් නම් එකතු කරනවා
+                    cartItems.push({
+                        itemId: item.id,
+                        name: item.name,
+                        welfarePrice: item.welfarePrice,
+                        mrpPrice: item.mrpPrice,
+                        qty: 1,
+                        imageUrl: item.imageUrl
+                    });
+                }
+
+                await setDoc(cartRef, { items: cartItems });
+                alert(`${item.name} added to cart!`);
+            } catch (e) {
+                console.error("Cart Error:", e);
+                alert("Failed to add to cart.");
+            }
+        };
+
         async function loadItems() {
             const grid = document.getElementById('productGrid');
             const noResults = document.getElementById('noResults');
             const now = new Date();
             const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-            // Fetch current month's orders to calculate limits
             const qOrders = query(collection(db, "orders"), where("staffId", "==", epfNumber), where("createdAt", ">=", startOfMonth));
             const orderSnap = await getDocs(qOrders);
             const boughtMap = {};
@@ -161,50 +197,39 @@
                 let itemsList = [];
                 snap.forEach(d => {
                     const item = d.data();
-                    
-                    // 1. Filter out Inactive items
                     if(item.status === "Inactive") return;
-
-                    // 2. Filter by Role Limit: Only show if limit for this position > 0
                     const roleKey = Object.keys(item.limits || {}).find(k => k.toLowerCase().trim() === userPosition.toLowerCase().trim());
                     const roleLimit = roleKey ? item.limits[roleKey] : 0;
-
-                    if(roleLimit > 0) {
-                        itemsList.push({ id: d.id, ...item, roleLimit });
-                    }
+                    if(roleLimit > 0) itemsList.push({ id: d.id, ...item, roleLimit });
                 });
 
                 const filterAndRender = () => {
                     const search = document.getElementById('searchInput').value.toLowerCase().trim();
                     const sort = document.getElementById('priceFilter').value;
-
                     let filtered = itemsList.filter(i => i.name.toLowerCase().includes(search));
-
                     if(sort === "low") filtered.sort((a,b) => a.welfarePrice - b.welfarePrice);
                     else if(sort === "high") filtered.sort((a,b) => b.welfarePrice - a.welfarePrice);
 
                     grid.innerHTML = '';
-                    if(filtered.length === 0) {
-                        noResults.classList.remove('hidden');
-                    } else {
+                    if(filtered.length === 0) noResults.classList.remove('hidden');
+                    else {
                         noResults.classList.add('hidden');
                         filtered.forEach(item => {
                             const alreadyBought = boughtMap[item.id] || 0;
                             const available = Math.max(0, item.roleLimit - alreadyBought);
                             const outOfStock = item.stock <= 0;
+                            const itemJson = JSON.stringify({id: item.id, name: item.name, welfarePrice: item.welfarePrice, mrpPrice: item.mrpPrice, imageUrl: item.imageUrl});
 
                             grid.innerHTML += `
                                 <div class="product-card animate-fade bg-white p-5 rounded-[2.5rem] border border-[#DCFCE7] shadow-sm transition-all duration-500 cursor-pointer" 
                                      onclick="window.location.href='product-details.html?id=${item.id}'">
                                     <div class="bg-[#F0FDF4] rounded-[2rem] h-52 mb-4 relative overflow-hidden flex items-center justify-center">
                                         <img src="${item.imageUrl}" class="w-full h-full object-cover transition duration-700">
-                                        
                                         <div class="absolute top-4 left-4">
                                             <span class="bg-white/90 text-[#064E3B] text-[9px] font-black px-2.5 py-1 rounded-xl shadow-sm border border-white">
                                                 ${item.stock <= 5 && !outOfStock ? 'LOW STOCK' : (outOfStock ? 'OUT OF STOCK' : 'IN STOCK')}
                                             </span>
                                         </div>
-
                                         <div class="absolute top-4 right-4 px-2.5 py-1 rounded-xl text-[9px] font-black text-white shadow-lg ${available <= 0 || outOfStock ? 'bg-red-500' : 'bg-[#059669]'}">
                                             ${outOfStock ? 'NO STOCK' : (available <= 0 ? 'LIMIT REACHED' : `AVAIL: ${available}`)}
                                         </div>
@@ -216,7 +241,13 @@
                                                 <p class="text-[8px] font-bold text-[#059669] uppercase tracking-wider">Welfare Price</p>
                                                 <p class="text-xl font-black text-[#064E3B] italic">Rs.${item.welfarePrice.toLocaleString()}</p>
                                             </div>
-                                            <div class="bg-[#059669] text-white p-2 rounded-xl"><i data-lucide="chevron-right" class="w-4 h-4"></i></div>
+                                            <div class="flex gap-2">
+                                                ${!outOfStock && available > 0 ? `
+                                                    <button onclick="window.addToCartDirect(event, '${itemJson.replace(/'/g, "\\'")}')" class="bg-white border border-[#059669] text-[#059669] p-2 rounded-xl hover:bg-emerald-50 transition shadow-sm">
+                                                        <i data-lucide="plus" class="w-4 h-4"></i>
+                                                    </button>` : ''}
+                                                <div class="bg-[#059669] text-white p-2 rounded-xl"><i data-lucide="chevron-right" class="w-4 h-4"></i></div>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>`;
@@ -234,6 +265,39 @@
         window.logout = () => { sessionStorage.clear(); window.location.href = "index.html"; };
         loadItems();
         lucide.createIcons();
+
+        // Logout Modal එක පෙන්වීමට හෝ සැඟවීමට
+window.toggleLogoutModal = () => {
+    const modal = document.getElementById('logoutModal');
+    modal.classList.toggle('hidden');
+};
+
+// ඇත්තටම Logout වීම තහවුරු කළ විට
+window.confirmLogout = () => {
+    sessionStorage.clear(); // සියලු දත්ත මකා දැමීම
+    window.location.href = "index.html"; // Login පිටුවට යොමු කිරීම
+};
     </script>
+
+    <div id="logoutModal" class="fixed inset-0 bg-[#064E3B]/40 z-[100] hidden backdrop-blur-sm flex items-center justify-center p-6">
+    <div class="bg-white w-full max-w-xs rounded-[2.5rem] p-8 text-center shadow-2xl scale-in-animation">
+        <div class="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4">
+            <i data-lucide="log-out" class="w-8 h-8 text-red-500"></i>
+        </div>
+        <h3 class="text-xl font-black text-[#064E3B] mb-2">Logout?</h3>
+        <p class="text-sm text-gray-500 mb-8 font-medium italic">Are you sure you want to log out from PMM Welfare Store?</p>
+        
+        <div class="space-y-3">
+            <button onclick="confirmLogout()" class="w-full bg-red-500 text-white py-4 rounded-2xl font-black shadow-lg hover:bg-red-600 transition-all transform active:scale-95">
+                Yes, Log Me Out
+            </button>
+            <button onclick="toggleLogoutModal()" class="w-full text-gray-400 font-bold py-2 hover:text-[#064E3B] transition">
+                Cancel
+            </button>
+        </div>
+    </div>
+</div>
+
+
 </body>
 </html>

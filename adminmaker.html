@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="si">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Create Super Admin</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f9;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+        .admin-card {
+            background: #fff;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            width: 350px;
+        }
+        .admin-card h2 {
+            text-align: center;
+            color: #333;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, select {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            box-sizing: border-box;
+        }
+        .btn-submit {
+            width: 100%;
+            padding: 10px;
+            background-color: #007bff;
+            border: none;
+            color: white;
+            font-size: 16px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        .btn-submit:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+
+<div class="admin-card">
+    <h2>Add New Admin</h2>
+    <form action="/save-admin" method="POST">
+        <div class="form-group">
+            <label>නම (Full Name):</label>
+            <input type="text" name="admin_name" placeholder="Enter name" required>
+        </div>
+        <div class="form-group">
+            <label>ඊමේල් (Email):</label>
+            <input type="email" name="admin_email" placeholder="Enter email" required>
+        </div>
+        <div class="form-group">
+            <label>පරිශීලක භූමිකාව (Role):</label>
+            <select name="role">
+                <option value="super_admin">Super Admin (Full Access)</option>
+                <option value="moderator">Moderator</option>
+                <option value="editor">Editor</option>
+            </select>
+        </div>
+        <button type="submit" class="btn-submit">Create Admin Account</button>
+    </form>
+</div>
+
+</body>
+</html>

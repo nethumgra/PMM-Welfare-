@@ -24,7 +24,6 @@
     </style>
 
     <script>
-        // Identity Gatekeeper
         if (!sessionStorage.getItem('epfNumber') && !sessionStorage.getItem('staffId')) { 
             window.location.href = "index.html"; 
         }
@@ -59,12 +58,18 @@
             <h3 class="text-xl font-black text-[#064E3B] flex items-center gap-2"><i data-lucide="shopping-basket"></i> Your Cart</h3>
             <button onclick="toggleCart()" class="p-2 text-gray-400 hover:text-red-500"><i data-lucide="x" class="w-6 h-6"></i></button>
         </div>
-        <div id="cartItems" class="flex-1 overflow-y-auto p-6 space-y-4">
-            </div>
+        <div id="cartItems" class="flex-1 overflow-y-auto p-6 space-y-4"></div>
+        
         <div class="p-6 border-t border-gray-100 bg-gray-50 space-y-4">
-            <div class="flex justify-between items-center font-black text-lg">
-                <span>Total Amount:</span>
-                <span id="cartTotal">Rs. 0.00</span>
+            <div class="space-y-1">
+                <div class="flex justify-between items-center font-black text-lg">
+                    <span>Total Amount:</span>
+                    <span id="cartTotal">Rs. 0.00</span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span class="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Your Monthly Budget Left:</span>
+                    <span id="cartRemainingDisplay" class="text-sm font-black text-[#064E3B]">Rs. 0</span>
+                </div>
             </div>
             <button id="cartCheckoutBtn" onclick="checkout('cart')" class="w-full bg-[#059669] text-white p-5 rounded-2xl font-black shadow-lg hover:bg-[#047857] transition disabled:opacity-50">
                 Confirm Cart Order
@@ -87,7 +92,7 @@
                 <p id="displayStaffName" class="font-bold text-sm text-[#064E3B]">Staff User</p>
                 <p id="displayPosition" class="text-[10px] text-[#059669] font-black uppercase tracking-widest italic">Role</p>
             </div>
-            <img id="displayUserImg" src="https://cdn-icons-png.flaticon.com/512/149/149071.png" class="w-10 h-10 rounded-xl object-cover border-2 border-white shadow-sm cursor-pointer" onclick="location.href='staff-orders.html'">
+            <img id="displayUserImg" src="" class="w-10 h-10 rounded-xl object-cover border-2 border-white shadow-sm cursor-pointer" onclick="location.href='staff-orders.html'">
         </div>
     </nav>
 
@@ -101,7 +106,7 @@
                 </div>
             </div>
             <div class="bg-white p-6 rounded-[2.5rem] border border-[#DCFCE7] shadow-sm flex items-center gap-4">
-                <div class="w-12 h-12 bg-amber-50 rounded-2xl flex items-center justify-center text-amber-600"><i data-lucide="piggy-bank"></i></div>
+                <div class="w-12 h-12 bg-amber-50 rounded-2xl flex items-center justify-center text-amber-600"><i data-lucide="coins"></i></div>
                 <div>
                     <p class="text-[10px] font-black text-[#059669] uppercase tracking-widest">You Save (This Item)</p>
                     <p class="text-2xl font-black text-emerald-600" id="savingDisplay">Rs. 0.00</p>
@@ -116,13 +121,22 @@
 
             <div class="space-y-8">
                 <div>
-                    <span id="roleBadge" class="bg-emerald-100 text-emerald-700 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-tighter">Quota Loaded</span>
-                    <h2 id="productName" class="text-4xl font-black text-[#064E3B] mt-4 leading-tight">Loading...</h2>
+                    <div class="flex flex-wrap gap-2 mb-4">
+                        <span id="roleBadge" class="bg-emerald-100 text-emerald-700 px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-tighter">Quota Loaded</span>
+                        <div id="productTagContainer" class="hidden">
+                            <span id="productTag" class="bg-orange-500 text-white px-4 py-1.5 rounded-full text-[10px] font-black uppercase italic tracking-wider shadow-sm flex items-center gap-1">
+                                <i data-lucide="tag" class="w-3 h-3"></i> # <span id="tagText"></span>
+                            </span>
+                        </div>
+                    </div>
+
+                    <h2 id="productName" class="text-4xl font-black text-[#064E3B] leading-tight">Loading...</h2>
+                    
                     <div class="mt-4 flex items-baseline gap-3">
                         <p id="wPrice" class="text-3xl font-black text-[#064E3B] italic">Rs. 0.00</p>
                         <p id="mPrice" class="text-sm text-[#059669] line-through font-bold opacity-60">MRP: Rs. 0.00</p>
                     </div>
-                    
+
                     <div id="commentBox" class="mt-4 p-4 bg-amber-50 rounded-2xl border border-amber-100 hidden">
                         <p class="text-[9px] font-black text-amber-700 uppercase mb-1 italic flex items-center gap-1"><i data-lucide="info" class="w-3 h-3"></i> Note from Store:</p>
                         <p id="productComment" class="text-xs font-medium text-amber-800"></p>
@@ -132,9 +146,9 @@
                 <div class="space-y-4">
                     <div class="flex items-center gap-6">
                         <div class="flex items-center bg-[#F0FDF4] border border-[#DCFCE7] rounded-3xl p-2 shadow-sm">
-                            <button onclick="changeQty(-1)" class="w-12 h-12 bg-white rounded-2xl shadow-sm border border-[#DCFCE7] text-[#059669] hover:bg-emerald-50"><i data-lucide="minus"></i></button>
+                            <button onclick="changeQty(-1)" class="w-12 h-12 bg-white rounded-2xl shadow-sm border border-[#DCFCE7] text-[#059669] hover:bg-emerald-50 transition"><i data-lucide="minus"></i></button>
                             <input type="number" id="orderQty" value="1" class="w-16 text-center bg-transparent font-black text-2xl text-[#064E3B] focus:outline-none" readonly>
-                            <button onclick="changeQty(1)" class="w-12 h-12 bg-white rounded-2xl shadow-sm border border-[#DCFCE7] text-[#059669] hover:bg-emerald-50"><i data-lucide="plus"></i></button>
+                            <button onclick="changeQty(1)" class="w-12 h-12 bg-white rounded-2xl shadow-sm border border-[#DCFCE7] text-[#059669] hover:bg-emerald-50 transition"><i data-lucide="plus"></i></button>
                         </div>
                         <div>
                             <p class="text-[10px] font-black text-[#059669] uppercase tracking-widest">Available Quota</p>
@@ -148,7 +162,7 @@
                     <button id="addCartBtn" onclick="addToCart()" class="bg-white border-2 border-[#059669] text-[#059669] p-5 rounded-[2.5rem] font-black text-lg hover:bg-emerald-50 transition flex items-center justify-center gap-2">
                         <i data-lucide="shopping-cart"></i> Add to Cart
                     </button>
-                    <button id="buyBtn" onclick="checkout('direct')" class="bg-[#059669] text-white p-5 rounded-[2.5rem] font-black text-lg hover:bg-[#047857] transition-all transform active:scale-95 shadow-xl shadow-emerald-100 flex items-center justify-center gap-2">
+                    <button id="buyBtn" onclick="checkout('direct')" class="bg-[#059669] text-white p-5 rounded-[2.5rem] font-black text-lg hover:bg-[#047857] transition-all transform active:scale-95 shadow-xl flex items-center justify-center gap-2">
                         <i data-lucide="shopping-bag"></i> Buy Now
                     </button>
                 </div>
@@ -158,12 +172,7 @@
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
-import { 
-    getFirestore, doc, getDoc, getDocs, collection, addDoc, 
-    query, where, updateDoc, increment, onSnapshot, setDoc, 
-    deleteDoc, runTransaction 
-} from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
-
+        import { getFirestore, doc, getDoc, getDocs, collection, addDoc, query, where, updateDoc, increment, onSnapshot, setDoc, deleteDoc, runTransaction } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
 
         const firebaseConfig = {
             apiKey: "AIzaSyB3jlpc_vbUydda2XpDj5Xd1J8kVei9v8U",
@@ -177,7 +186,7 @@ import {
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        // State Variables
+        // State
         const urlParams = new URLSearchParams(window.location.search);
         const productId = urlParams.get('id');
         const epfNumber = sessionStorage.getItem('epfNumber') || sessionStorage.getItem('staffId');
@@ -194,7 +203,7 @@ import {
         async function init() {
             if (!productId) return window.location.href = "products.html";
             
-            // 1. Real-time Site Branding
+            // 1. App Branding
             onSnapshot(doc(db, "settings", "site"), (d) => {
                 if (d.exists()) {
                     document.getElementById('siteName').innerText = d.data().name;
@@ -205,45 +214,67 @@ import {
                 }
             });
 
-            // 2. User Info
+            // 2. User Setup
             document.getElementById('displayStaffName').innerText = staffName;
             document.getElementById('displayPosition').innerText = userPosition;
             document.getElementById('displayUserImg').src = sessionStorage.getItem('userImage') || "https://cdn-icons-png.flaticon.com/512/149/149071.png";
 
-            // 3. Load Product Data
+            // 3. Load Product
             const pDoc = await getDoc(doc(db, "items", productId));
             if (!pDoc.exists()) return;
             productData = { ...pDoc.data(), id: pDoc.id };
             
-            if(productData.comment) { 
-                document.getElementById('commentBox').classList.remove('hidden'); 
-                document.getElementById('productComment').innerText = productData.comment; 
+            if (productData.itemTag) {
+                document.getElementById('productTagContainer').classList.remove('hidden');
+                document.getElementById('tagText').innerText = productData.itemTag;
+            }
+            if(productData.comment) {
+                document.getElementById('commentBox').classList.remove('hidden');
+                document.getElementById('productComment').innerText = productData.comment;
             }
 
-            // 4. Budget & Role Limits
-            const rolesSnap = await getDocs(collection(db, "roles"));
-            const matchingRole = rolesSnap.docs.find(d => d.data().name.toLowerCase().trim() === userPosition.toLowerCase().trim());
-            roleBudget = matchingRole ? matchingRole.data().monthlyLimit : 0;
+            // 4. Budget Loading Fix (EPF Number query)
+            const userQuery = query(collection(db, "users"), where("epfNumber", "==", epfNumber));
+            const userSnap = await getDocs(userQuery);
+            
+            let overrideLimit = 0;
+            if (!userSnap.empty) {
+                const userData = userSnap.docs[0].data();
+                overrideLimit = userData.monthlyLimit || 0;
+            }
 
-            // Calculate spent amount this month
+            if (overrideLimit > 0) {
+                roleBudget = overrideLimit;
+            } else {
+                const rolesSnap = await getDocs(collection(db, "roles"));
+                const matchingRole = rolesSnap.docs.find(d => d.data().name.toLowerCase().trim() === userPosition.toLowerCase().trim());
+                roleBudget = matchingRole ? matchingRole.data().monthlyLimit : 0;
+            }
+
+            // 5. Calculate Spent (Skip Rejected Items)
             const now = new Date();
             const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-            const q = query(collection(db, "orders"), where("staffId", "==", epfNumber), where("createdAt", ">=", startOfMonth));
-            const orders = await getDocs(q);
+            const qOrders = query(collection(db, "orders"), where("staffId", "==", epfNumber), where("createdAt", ">=", startOfMonth));
+            const ordersSnap = await getDocs(qOrders);
             
             let boughtQty = 0;
-            orders.forEach(o => {
+            monthlySpent = 0;
+            ordersSnap.forEach(o => {
                 const d = o.data();
                 if(d.status !== "Cancelled") {
-                    monthlySpent += d.total;
-                    d.items.forEach(i => { if(i.itemId === productId) boughtQty += i.qty; });
+                    d.items.forEach(item => {
+                        if (item.status !== "Rejected") {
+                            monthlySpent += (item.welfarePrice * item.qty);
+                            if(item.itemId === productId) boughtQty += item.qty;
+                        }
+                    });
                 }
             });
 
             const roleLimit = productData.limits ? (productData.limits[userPosition] || 0) : 0;
             maxAllowedQty = Math.min(roleLimit - boughtQty, productData.stock);
 
-            // 5. Initial UI Render
+            // 6. UI Render
             document.getElementById('productName').innerText = productData.name;
             document.getElementById('wPrice').innerText = "Rs. " + productData.welfarePrice.toLocaleString();
             document.getElementById('mPrice').innerText = "MRP: Rs. " + productData.mrpPrice.toLocaleString();
@@ -257,7 +288,7 @@ import {
             if (productData.stock <= 0) updateStatus("Out of Stock", true, "ITEM CURRENTLY UNAVAILABLE");
             else if (maxAllowedQty <= 0) updateStatus("Limit Reached", true, "YOU HAVE REACHED YOUR MONTHLY LIMIT");
             
-            // 6. Sync Cart from Database
+            // 7. Cart Listener
             onSnapshot(doc(db, "user_carts", epfNumber), (cartDoc) => {
                 dbCartItems = cartDoc.exists() ? cartDoc.data().items : [];
                 updateCartUI();
@@ -266,12 +297,55 @@ import {
             lucide.createIcons();
         }
 
+        window.updateCartUI = () => {
+            const container = document.getElementById('cartItems');
+            const totalDisplay = document.getElementById('cartTotal');
+            const budgetLeftDisplay = document.getElementById('cartRemainingDisplay'); 
+            let total = 0;
+            container.innerHTML = '';
+            
+            dbCartItems.forEach((i, idx) => {
+                total += (i.welfarePrice * i.qty);
+                container.innerHTML += `
+                    <div class="bg-emerald-50 p-4 rounded-2xl border border-emerald-100 flex justify-between items-center animate-scale">
+                        <div class="flex gap-3 items-center">
+                            <img src="${i.imageUrl}" class="w-10 h-10 rounded-lg object-cover">
+                            <div>
+                                <h5 class="font-black text-xs text-[#064E3B]">${i.name}</h5>
+                                <p class="text-[10px] font-bold text-emerald-600">Qty: ${i.qty} x Rs.${i.welfarePrice.toLocaleString()}</p>
+                            </div>
+                        </div>
+                        <button onclick="removeItem(${idx})" class="p-2 text-red-500 hover:bg-white rounded-xl transition shadow-sm"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                    </div>`;
+            });
+            
+            document.getElementById('cartCount').innerText = dbCartItems.length;
+            totalDisplay.innerText = "Rs. " + total.toLocaleString();
+
+            const currentRemaining = roleBudget - monthlySpent;
+            budgetLeftDisplay.innerText = "Rs. " + Math.max(0, currentRemaining).toLocaleString();
+
+            const isOverBudget = (total > currentRemaining);
+            if(isOverBudget) {
+                totalDisplay.classList.add('text-red-500');
+                budgetLeftDisplay.classList.add('text-red-500');
+                budgetLeftDisplay.innerText = "Monthly Budget Exceeded!";
+            } else {
+                totalDisplay.classList.remove('text-red-500');
+                budgetLeftDisplay.classList.remove('text-red-500');
+            }
+
+            document.getElementById('cartCheckoutBtn').disabled = dbCartItems.length === 0 || isOverBudget;
+            lucide.createIcons();
+        }
+
         function updateStatus(text, disable, alertMsg) {
-            const btns = ['buyBtn', 'addCartBtn'];
-            btns.forEach(id => {
+            ['buyBtn', 'addCartBtn'].forEach(id => {
                 const b = document.getElementById(id);
-                b.disabled = disable;
-                if(disable) b.classList.add('opacity-50', 'grayscale');
+                if(b) {
+                    b.disabled = disable;
+                    if(disable) b.classList.add('opacity-50', 'grayscale');
+                }
             });
             document.getElementById('buyBtn').innerText = text;
             if(alertMsg) document.getElementById('stockAlert').innerText = alertMsg;
@@ -291,56 +365,14 @@ import {
 
         window.addToCart = async () => {
             const qty = parseInt(document.getElementById('orderQty').value);
-            const newItem = { 
-                itemId: productData.id, 
-                name: productData.name, 
-                welfarePrice: productData.welfarePrice,
-                mrpPrice: productData.mrpPrice,
-                qty: qty,
-                imageUrl: productData.imageUrl
-            };
-
             const existingIdx = dbCartItems.findIndex(i => i.itemId === productData.id);
             if(existingIdx > -1) {
                 dbCartItems[existingIdx].qty = Math.min(dbCartItems[existingIdx].qty + qty, maxAllowedQty);
             } else {
-                dbCartItems.push(newItem);
+                dbCartItems.push({ itemId: productData.id, name: productData.name, welfarePrice: productData.welfarePrice, mrpPrice: productData.mrpPrice, qty: qty, imageUrl: productData.imageUrl });
             }
-
             await setDoc(doc(db, "user_carts", epfNumber), { items: dbCartItems });
             toggleCart();
-        }
-
-        window.updateCartUI = () => {
-            const container = document.getElementById('cartItems');
-            const totalDisplay = document.getElementById('cartTotal');
-            const countDisplay = document.getElementById('cartCount');
-            container.innerHTML = '';
-            let total = 0;
-            
-            dbCartItems.forEach((i, index) => {
-                total += (i.welfarePrice * i.qty);
-                container.innerHTML += `
-                    <div class="bg-emerald-50 p-4 rounded-2xl border border-emerald-100 flex justify-between items-center animate-scale">
-                        <div class="flex gap-3 items-center">
-                            <img src="${i.imageUrl}" class="w-10 h-10 rounded-lg object-cover">
-                            <div>
-                                <h5 class="font-black text-xs text-[#064E3B]">${i.name}</h5>
-                                <p class="text-[10px] font-bold text-emerald-600">Qty: ${i.qty} x Rs.${i.welfarePrice.toLocaleString()}</p>
-                            </div>
-                        </div>
-                        <button onclick="removeItem(${index})" class="p-2 bg-white rounded-xl text-red-500 shadow-sm"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
-                    </div>`;
-            });
-            
-            countDisplay.innerText = dbCartItems.length;
-            totalDisplay.innerText = "Rs. " + total.toLocaleString();
-            document.getElementById('cartCheckoutBtn').disabled = dbCartItems.length === 0 || (monthlySpent + total > roleBudget);
-            
-            if(monthlySpent + total > roleBudget) totalDisplay.classList.add('text-red-500');
-            else totalDisplay.classList.remove('text-red-500');
-
-            lucide.createIcons();
         }
 
         window.removeItem = async (idx) => {
@@ -348,133 +380,107 @@ import {
             await setDoc(doc(db, "user_carts", epfNumber), { items: dbCartItems });
         }
 
-      window.checkout = async (type) => {
-    const checkoutItems = type === 'direct' ? [{ 
-        itemId: productData.id, 
-        name: productData.name, 
-        welfarePrice: productData.welfarePrice,
-        mrpPrice: productData.mrpPrice,
-        qty: parseInt(document.getElementById('orderQty').value) 
-    }] : dbCartItems;
+        window.checkout = async (type) => {
+            const checkoutItems = type === 'direct' ? [{ 
+                itemId: productData.id, 
+                name: productData.name, 
+                welfarePrice: productData.welfarePrice,
+                mrpPrice: productData.mrpPrice,
+                qty: parseInt(document.getElementById('orderQty').value) 
+            }] : dbCartItems;
 
-    if(checkoutItems.length === 0) return;
+            if(checkoutItems.length === 0) return;
+            const totalCost = checkoutItems.reduce((acc, i) => acc + (i.welfarePrice * i.qty), 0);
+            if(monthlySpent + totalCost > roleBudget) return alert("Total exceeds your monthly budget!");
 
-    const totalCost = checkoutItems.reduce((acc, i) => acc + (i.welfarePrice * i.qty), 0);
-    const totalSavings = checkoutItems.reduce((acc, i) => acc + ((i.mrpPrice - i.welfarePrice) * i.qty), 0);
-    
-    if(monthlySpent + totalCost > roleBudget) return alert("Total exceeds your monthly budget!");
+            const btn = type === 'direct' ? document.getElementById('buyBtn') : document.getElementById('cartCheckoutBtn');
+            btn.disabled = true;
+            btn.innerText = "Processing...";
 
-    const btn = type === 'direct' ? document.getElementById('buyBtn') : document.getElementById('cartCheckoutBtn');
-    const originalText = btn.innerText;
-    btn.disabled = true;
-    btn.innerText = "Processing...";
+            try {
+                let orderNo = 1001;
+                await runTransaction(db, async (transaction) => {
+                    const counterRef = doc(db, "settings", "orderCounter");
+                    const counterSnap = await transaction.get(counterRef);
+                    if (!counterSnap.exists()) {
+                        transaction.set(counterRef, { lastNumber: 1001 });
+                    } else {
+                        orderNo = counterSnap.data().lastNumber + 1;
+                        transaction.update(counterRef, { lastNumber: orderNo });
+                    }
+                });
 
-    try {
-        // --- SERIAL NUMBER GENERATOR START ---
-        const counterRef = doc(db, "settings", "orderCounter");
-        let newNo = 1001; // මුල්ම ඕඩර් එක ආරම්භ වන අංකය
+                const formattedOrderNo = "ORD-" + orderNo;
+                const totalSavings = checkoutItems.reduce((acc, i) => acc + ((i.mrpPrice - i.welfarePrice) * i.qty), 0);
 
-        await runTransaction(db, async (transaction) => {
-            const counterSnap = await transaction.get(counterRef);
-            if (!counterSnap.exists()) {
-                transaction.set(counterRef, { lastNumber: 1001 });
-            } else {
-                newNo = counterSnap.data().lastNumber + 1;
-                transaction.update(counterRef, { lastNumber: newNo });
-            }
-        });
+                const orderData = {
+                    orderNo: formattedOrderNo,
+                    staffId: epfNumber,
+                    staffName,
+                    userPosition,
+                    items: checkoutItems.map(i => ({...i, status: "Pending"})),
+                    total: totalCost,
+                    savings: totalSavings,
+                    status: "Pending",
+                    createdAt: new Date()
+                };
 
-        const formattedOrderNo = "ORD-" + newNo; 
-        // --- SERIAL NUMBER GENERATOR END ---
+                const oRef = await addDoc(collection(db, "orders"), orderData);
+                lastOrderRef = { id: oRef.id, ...orderData };
 
-        const orderData = {
-            orderNo: formattedOrderNo, // අලුත් අංකය මෙතනට එකතු කළා
-            staffId: epfNumber, 
-            staffName, 
-            userPosition,
-            items: checkoutItems, 
-            total: totalCost, 
-            savings: totalSavings,
-            status: "Pending", 
-            createdAt: new Date()
-        };
+                for(let item of checkoutItems) {
+                    const iRef = doc(db, "items", item.itemId);
+                    await updateDoc(iRef, { stock: increment(-item.qty) });
+                    
+                    await addDoc(collection(db, "inventory_logs"), {
+                        itemId: item.itemId, itemName: item.name, type: "OUT", qty: item.qty,
+                        createdAt: new Date(), note: `Order #${formattedOrderNo}`
+                    });
+                }
 
-        const oRef = await addDoc(collection(db, "orders"), orderData);
-        lastOrderRef = { id: oRef.id, ...orderData };
+                if(type === 'cart') await deleteDoc(doc(db, "user_carts", epfNumber));
+                document.getElementById('successOverlay').classList.remove('hidden');
+                lucide.createIcons();
 
-        // Inventory Updates & Logs
-        for(let i of checkoutItems) {
-            const iRef = doc(db, "items", i.itemId);
-            await updateDoc(iRef, { stock: increment(-i.qty) });
-            
-            const snap = await getDoc(iRef);
-            if(snap.exists() && snap.data().stock <= 0) await updateDoc(iRef, { status: "Inactive" });
-
-            await addDoc(collection(db, "inventory_logs"), {
-                itemId: i.itemId, 
-                itemName: i.name, 
-                type: "OUT", 
-                qty: i.qty,
-                balance: snap.exists() ? snap.data().stock : 0,
-                createdAt: new Date(),
-                note: `Order #${formattedOrderNo} by ${staffName}` // මෙතනත් අලුත් අංකය භාවිතා කළා
-            });
+            } catch (e) { alert("Error: " + e.message); btn.disabled = false; }
         }
 
-        if(type === 'cart') await deleteDoc(doc(db, "user_carts", epfNumber));
-
-        document.getElementById('successOverlay').classList.remove('hidden');
-        lucide.createIcons();
-    } catch (e) { 
-        console.error("Checkout Error:", e);
-        alert("Error: " + e.message); 
-        btn.disabled = false; 
-        btn.innerText = originalText;
-    }
-}
-
-        // --- PDF GENERATOR ---
         window.generateInvoice = () => {
             if(!lastOrderRef) return;
             const { jsPDF } = window.jspdf;
-            const doc = new jsPDF({ unit: 'mm', format: [100, 160] });
-            const siteTitle = document.getElementById('siteName').innerText;
+            const pdf = new jsPDF({ unit: 'mm', format: [100, 160] });
 
-            doc.setFont("helvetica", "bold");
-            doc.text(siteTitle.toUpperCase(), 50, 15, { align: "center" });
-            doc.setFontSize(8);
-            doc.text("------------------------------------------", 50, 20, { align: "center" });
+            pdf.setFont("helvetica", "bold");
+            pdf.text("PMM WELFARE RECEIPT", 50, 15, { align: "center" });
+            pdf.setFontSize(8);
+            pdf.text("--------------------------------------------------", 50, 20, { align: "center" });
             
-            doc.setFontSize(9);
-            doc.text(`Order ID: #${lastOrderRef.id.substring(0,10)}`, 10, 30);
-            doc.text(`Date: ${new Date().toLocaleString()}`, 10, 36);
-            doc.text(`Staff: ${staffName} (${epfNumber})`, 10, 42);
+            pdf.setFontSize(9);
+            pdf.text(`Order No: #${lastOrderRef.orderNo}`, 10, 30);
+            pdf.text(`Staff: ${staffName}`, 10, 36);
+            pdf.text(`Role: ${userPosition}`, 10, 42);
+            pdf.text(`Date: ${new Date().toLocaleDateString()}`, 10, 48);
             
-            doc.text("Item(s) Details:", 10, 55);
-            doc.setFont("helvetica", "normal");
+            let y = 60;
+            pdf.line(10, 54, 90, 54);
             
-            let y = 62;
-            lastOrderRef.items.forEach(item => {
-                doc.text(`${item.name}`, 10, y);
-                doc.text(`${item.qty} x Rs. ${item.welfarePrice.toLocaleString()}`, 80, y, { align: "right" });
-                y += 6;
+            lastOrderRef.items.forEach(i => {
+                pdf.setFont("helvetica", "bold");
+                pdf.text(`${i.name} (x${i.qty})`, 10, y);
+                pdf.setFontSize(7);
+                pdf.text(`${i.qty} x Rs. ${i.welfarePrice.toLocaleString()}`, 10, y + 4);
+                pdf.setFontSize(9);
+                pdf.text(`Rs. ${(i.welfarePrice * i.qty).toLocaleString()}`, 90, y, { align: "right" });
+                y += 10;
             });
 
-            doc.setFont("helvetica", "bold");
-            doc.setFontSize(10);
-            y += 4;
-            doc.text(`Total Price: Rs. ${lastOrderRef.total.toLocaleString()}`, 10, y);
+            pdf.line(10, y, 90, y);
+            pdf.setFont("helvetica", "bold");
+            pdf.text(`TOTAL: Rs. ${lastOrderRef.total.toLocaleString()}`, 10, y + 8);
+            pdf.setTextColor(5, 150, 105);
+            pdf.text(`You Saved: Rs. ${lastOrderRef.savings.toLocaleString()}`, 10, y + 14);
             
-            doc.setTextColor(5, 150, 105);
-            y += 8;
-            doc.text(`Total Savings: Rs. ${lastOrderRef.savings.toLocaleString()}`, 10, y);
-            
-            doc.setTextColor(0, 0, 0);
-            doc.setFontSize(8);
-            doc.text("Status: PENDING APPROVAL", 50, 140, { align: "center" });
-            doc.text("Present this at the counter for collection.", 50, 145, { align: "center" });
-            
-            doc.save(`Receipt_${lastOrderRef.id.substring(0,5)}.pdf`);
+            pdf.save(`Invoice_${lastOrderRef.orderNo}.pdf`);
         };
 
         init();
