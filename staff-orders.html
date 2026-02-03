@@ -33,16 +33,18 @@
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
             <div class="bg-white p-6 rounded-[2.5rem] border border-[#DCFCE7] shadow-sm">
                 <p class="text-[10px] font-black text-[#059669] uppercase tracking-widest mb-2">Monthly Budget Used</p>
-                <h3 class="text-2xl font-black text-[#064E3B]" id="budgetUsedDisplay">Rs. 0.00</h3>
+                <h3 class="text-2xl font-black text-[#064E3B]" id="budgetUsedDisplay">Rs. 0.00 / 0.00</h3>
                 <div class="w-full bg-[#F0FDF4] h-2 rounded-full mt-3 overflow-hidden">
                     <div id="budgetBar" class="bg-[#059669] h-full transition-all duration-1000" style="width: 0%"></div>
                 </div>
             </div>
+
             <div class="bg-white p-6 rounded-[2.5rem] border border-[#DCFCE7] shadow-sm">
                 <p class="text-[10px] font-black text-[#059669] uppercase tracking-widest mb-2">Total Welfare Savings</p>
                 <h3 class="text-2xl font-black text-emerald-600" id="totalSavingsDisplay">Rs. 0.00</h3>
-                <p class="text-[10px] text-emerald-600 font-bold mt-2 uppercase">Your Profit (From Dispatched Items)</p>
+                <p class="text-[10px] text-emerald-600 font-bold mt-2 uppercase">Your Total Profit</p>
             </div>
+
             <div class="bg-white p-6 rounded-[2.5rem] border border-[#DCFCE7] shadow-sm flex items-center justify-between">
                 <div>
                     <p class="text-[10px] font-black text-[#059669] uppercase tracking-widest">Items Dispatched</p>
@@ -91,249 +93,247 @@
         const app = initializeApp(firebaseConfig);
         const db = getFirestore(app);
 
-        const staffId = sessionStorage.getItem('staffId');
+        // Identification Logic
+        const staffId = sessionStorage.getItem('epfNumber') || sessionStorage.getItem('staffId');
         const staffName = sessionStorage.getItem('staffName');
         const userPosition = sessionStorage.getItem('userPosition');
 
         document.getElementById('displayStaffName').innerText = staffName;
         document.getElementById('displayPosition').innerText = userPosition;
-async function loadMyOrders() {
-    const now = new Date();
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    let budgetLimit = 0;
 
-    // --- 1. බජට් සීමාව ලබා ගැනීම (Individual Override මුලින්ම පරීක්ෂා කරයි) ---
-    try {
-        const userDoc = await getDoc(doc(db, "users", staffId));
-        if (userDoc.exists() && userDoc.data().monthlyLimit > 0) {
-            budgetLimit = userDoc.data().monthlyLimit;
-        } else {
-            // විශේෂිත ලිමිට් එකක් නැත්නම් Role එකේ Default ලිමිට් එක ගනියි
-            const rolesSnap = await getDocs(collection(db, "roles"));
-            const matchingRole = rolesSnap.docs.find(d => 
-                d.data().name.toLowerCase().trim() === userPosition.toLowerCase().trim()
-            );
-            budgetLimit = matchingRole ? matchingRole.data().monthlyLimit : 0;
-        }
-    } catch (e) { console.error("Budget Loading Error:", e); }
+        let roleBudget = 0;
+        let monthlySpent = 0;
 
-    // --- 2. ඇණවුම් නිරීක්ෂණය (Real-time Snapshot) ---
-    const q = query(collection(db, "orders"), where("staffId", "==", staffId), orderBy("createdAt", "desc"));
-    
-    onSnapshot(q, (snap) => {
-        const tableBody = document.getElementById('staffOrdersBody');
-        tableBody.innerHTML = '';
-        let spentThisMonth = 0;
-        let savingsThisMonth = 0;
-        let totalItemsCount = 0;
-
-        snap.forEach(d => {
-            const order = d.data();
-            const orderId = d.id;
-            const orderDate = order.createdAt?.toDate();
-            const status = order.status || "Pending";
-
-            let rowActiveTotal = 0;
-            let rowActiveSaving = 0;
-
-            // ඇණවුමේ ඇති අයිතම එකින් එක පරීක්ෂා කිරීම
-            const itemsListHtml = order.items.map(item => {
-                const isRejected = item.status === "Rejected";
-                
-                // Rejected අයිතම සඳහා මිල 0 ලෙස ගනියි (එය බජට් එකට බලපාන්නේ නැත)
-                const itemPrice = isRejected ? 0 : (item.welfarePrice * item.qty);
-                const itemSaving = isRejected ? 0 : ((item.mrpPrice - item.welfarePrice) * item.qty);
-
-                rowActiveTotal += itemPrice;
-                rowActiveSaving += itemSaving;
-
-                // මාසික වාර්තා (Stats): Cancelled නොවන සහ Rejected නොවන අයිතම පමණක් ගණනය කරයි
-                if (orderDate >= startOfMonth && status !== "Cancelled" && !isRejected) {
-                    spentThisMonth += itemPrice;
-                    savingsThisMonth += itemSaving;
-                    // අයිතම සංඛ්‍යාව ගණනය කරන්නේ Dispatched/Completed ඒවා සඳහා පමණි
-                    if(item.status === "Dispatched" || item.status === "Completed") {
-                        totalItemsCount += item.qty;
+        // --- 1. Real-time Budget Limit (User Override or Role Default) ---
+        function listenToBudget() {
+            // Updated to check by EPF/StaffId
+            const userQuery = query(collection(db, "users"), where("epfNumber", "==", staffId));
+            
+            onSnapshot(userQuery, async (userSnap) => {
+                let budgetLimit = 0;
+                if (!userSnap.empty) {
+                    const userData = userSnap.docs[0].data();
+                    // Check for custom individual limit
+                    budgetLimit = (userData.monthlyLimit && userData.monthlyLimit > 0) ? userData.monthlyLimit : 0;
+                    
+                    // If no individual limit, fetch the role default
+                    if (budgetLimit === 0) {
+                        const rolesSnap = await getDocs(collection(db, "roles"));
+                        const matchingRole = rolesSnap.docs.find(d => 
+                            d.data().name.toLowerCase().trim() === userPosition.toLowerCase().trim()
+                        );
+                        budgetLimit = matchingRole ? matchingRole.data().monthlyLimit : 0;
                     }
                 }
+                roleBudget = budgetLimit;
+                updateUIStats(); 
+            });
+        }
 
-                let itemStatusColor = "text-amber-500";
-                if(item.status === "Dispatched" || item.status === "Completed") itemStatusColor = "text-blue-600";
-                if(isRejected) itemStatusColor = "text-red-500";
+        // --- 2. Calculate Monthly Spending (Exclude Rejected/Cancelled) ---
+        function listenToMonthlySpent() {
+            const now = new Date();
+            const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+            const qSpent = query(collection(db, "orders"), where("staffId", "==", staffId), where("createdAt", ">=", startOfMonth));
 
-                return `
-                    <div class="flex justify-between text-[10px] mb-1 pb-1 border-b border-gray-50 last:border-0">
-                        <span class="${isRejected ? 'line-through text-red-400' : 'font-bold'}">${item.name} (x${item.qty})</span>
-                        <span class="font-black uppercase ${itemStatusColor}">
-                            ${item.status || 'Pending'} ${isRejected ? '' : '- Rs.' + itemPrice.toLocaleString()}
-                        </span>
-                    </div>
-                `;
-            }).join('');
+            onSnapshot(qSpent, (snapshot) => {
+                monthlySpent = 0;
+                snapshot.forEach(o => {
+                    const orderData = o.data();
+                    if(orderData.status !== "Cancelled") {
+                        orderData.items.forEach(item => {
+                            if (item.status !== "Rejected") {
+                                monthlySpent += (item.welfarePrice * item.qty);
+                            }
+                        });
+                    }
+                });
+                updateUIStats();
+            });
+        }
 
-            let statusStyle = "bg-amber-100 text-amber-600";
-            if(status === "Completed") statusStyle = "bg-green-100 text-green-700";
-            else if(status === "Dispatched") statusStyle = "bg-blue-100 text-blue-600";
-            else if(status === "Cancelled") statusStyle = "bg-red-100 text-red-600";
+        // --- 3. Order History Display ---
+        function listenToOrderHistory() {
+            const q = query(collection(db, "orders"), where("staffId", "==", staffId), orderBy("createdAt", "desc"));
+            
+            onSnapshot(q, (snap) => {
+                const tableBody = document.getElementById('staffOrdersBody');
+                tableBody.innerHTML = '';
+                let dispatchedCount = 0;
+                let totalSavings = 0;
 
-            const hasDispatchedItems = order.items.some(i => i.status === "Dispatched" || i.status === "Completed");
+                snap.forEach(d => {
+                    const order = d.data();
+                    const orderId = d.id;
+                    const orderDate = order.createdAt?.toDate();
+                    const status = order.status || "Pending";
 
-            tableBody.innerHTML += `
-                <tr class="border-b border-[#F0FDF4] hover:bg-[#F0FDF4]/50 transition">
-                    <td class="p-8 text-[11px] font-bold text-[#059669]">${orderDate?.toLocaleDateString()}</td>
-                    <td class="p-8">
-                        <p class="font-black text-[#064E3B] mb-2 uppercase text-sm tracking-widest">${order.orderNo || 'Pack #' + orderId.substring(0,8)}</p>
-                        <div class="bg-gray-50 p-3 rounded-2xl border border-gray-100">${itemsListHtml}</div>
-                    </td>
-                    <td class="p-8 font-black text-[#064E3B]">Rs. ${rowActiveTotal.toLocaleString()}</td>
-                    <td class="p-8 font-black text-emerald-600 italic">Rs. ${rowActiveSaving.toLocaleString()}</td>
-                    <td class="p-8 text-center">
-                        <span class="px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest ${statusStyle}">
-                            ${status}
-                        </span>
-                    </td>
-                    <td class="p-8 text-right">
-                        <div class="flex flex-col gap-2 items-end">
-                            ${hasDispatchedItems ? `
-                                <button onclick="window.downloadDispatchedInvoice('${orderId}')" 
-                                        class="bg-blue-600 text-white px-3 py-2 rounded-xl font-black text-[9px] uppercase hover:bg-blue-700 transition flex items-center gap-1 shadow-md">
-                                    <i data-lucide="download" class="w-3 h-3"></i> Download Invoice
-                                </button>
-                            ` : ''}
-                            ${status === "Pending" ? `
-                                <button onclick="window.cancelOrderPack('${orderId}')" 
-                                        class="text-red-500 hover:text-red-700 transition flex items-center gap-1 font-bold text-[10px] uppercase">
-                                    <i data-lucide="x-circle" class="w-4 h-4"></i> Cancel Pack
-                                </button>
-                            ` : ''}
-                        </div>
-                    </td>
-                </tr>`;
-        });
+                    let rowActiveTotal = 0;
+                    let rowActiveSaving = 0;
 
-        // Header Stats යාවත්කාලීන කිරීම
-        document.getElementById('budgetUsedDisplay').innerText = `Rs. ${spentThisMonth.toLocaleString()} / ${budgetLimit.toLocaleString()}`;
-        document.getElementById('totalSavingsDisplay').innerText = `Rs. ${savingsThisMonth.toLocaleString()}`;
-        document.getElementById('orderCountDisplay').innerText = totalItemsCount; 
-        
-        // Progress Bar එක යාවත්කාලීන කිරීම
-        const percent = budgetLimit > 0 ? (spentThisMonth / budgetLimit) * 100 : 0;
-        const bar = document.getElementById('budgetBar');
-        bar.style.width = Math.min(percent, 100) + "%";
-        
-        // බජට් එක 90% ඉක්මවා ගියහොත් රතු පැහැයෙන් පෙන්වයි
-        if(percent > 90) bar.className = "bg-red-500 h-full transition-all duration-1000";
-        else bar.className = "bg-[#059669] h-full transition-all duration-1000";
+                    const itemsListHtml = order.items.map(item => {
+                        const isRejected = item.status === "Rejected";
+                        const itemPrice = isRejected ? 0 : (item.welfarePrice * item.qty);
+                        const itemSaving = isRejected ? 0 : ((item.mrpPrice - item.welfarePrice) * item.qty);
 
-        lucide.createIcons();
-    });
-}
+                        rowActiveTotal += itemPrice;
+                        rowActiveSaving += itemSaving;
 
-        // --- Optimized Dispatched Invoice PDF Generator ---
+                        // Calculate totals for dispatched items specifically
+                        if(status !== "Cancelled" && !isRejected) {
+                            totalSavings += itemSaving;
+                            if(item.status === "Dispatched" || item.status === "Completed") {
+                                dispatchedCount += item.qty;
+                            }
+                        }
+
+                        let itemStatusColor = "text-amber-500";
+                        if(item.status === "Dispatched" || item.status === "Completed") itemStatusColor = "text-blue-600";
+                        if(isRejected) itemStatusColor = "text-red-500";
+
+                        return `
+                            <div class="flex justify-between text-[10px] mb-1 pb-1 border-b border-gray-50 last:border-0">
+                                <span class="${isRejected ? 'line-through text-red-400' : 'font-bold'}">${item.name} (x${item.qty})</span>
+                                <span class="font-black uppercase ${itemStatusColor}">
+                                    ${item.status || 'Pending'} ${isRejected ? '' : '- Rs.' + itemPrice.toLocaleString()}
+                                </span>
+                            </div>`;
+                    }).join('');
+
+                    let statusStyle = "bg-amber-100 text-amber-600";
+                    if(status === "Completed") statusStyle = "bg-green-100 text-green-700";
+                    else if(status === "Dispatched") statusStyle = "bg-blue-100 text-blue-600";
+                    else if(status === "Cancelled") statusStyle = "bg-red-100 text-red-600";
+
+                    const hasDispatchedItems = order.items.some(i => i.status === "Dispatched" || i.status === "Completed");
+
+                    tableBody.innerHTML += `
+                        <tr class="border-b border-[#F0FDF4] hover:bg-[#F0FDF4]/50 transition">
+                            <td class="p-8 text-[11px] font-bold text-[#059669]">${orderDate?.toLocaleDateString()}</td>
+                            <td class="p-8">
+                                <p class="font-black text-[#064E3B] mb-2 uppercase text-sm tracking-widest">${order.orderNo || 'Pack #' + orderId.substring(0,8)}</p>
+                                <div class="bg-gray-50 p-3 rounded-2xl border border-gray-100">${itemsListHtml}</div>
+                            </td>
+                            <td class="p-8 font-black text-[#064E3B]">Rs. ${rowActiveTotal.toLocaleString()}</td>
+                            <td class="p-8 font-black text-emerald-600 italic">Rs. ${rowActiveSaving.toLocaleString()}</td>
+                            <td class="p-8 text-center">
+                                <span class="px-4 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest ${statusStyle}">
+                                    ${status}
+                                </span>
+                            </td>
+                            <td class="p-8 text-right">
+                                <div class="flex flex-col gap-2 items-end">
+                                    ${hasDispatchedItems ? `<button onclick="window.downloadDispatchedInvoice('${orderId}')" class="bg-blue-600 text-white px-3 py-2 rounded-xl font-black text-[9px] uppercase hover:bg-blue-700 transition flex items-center gap-1 shadow-md"><i data-lucide="download" class="w-3 h-3"></i> Download Invoice</button>` : ''}
+                                    ${status === "Pending" ? `<button onclick="window.cancelOrderPack('${orderId}')" class="text-red-500 hover:text-red-700 transition flex items-center gap-1 font-bold text-[10px] uppercase"><i data-lucide="x-circle" class="w-4 h-4"></i> Cancel Pack</button>` : ''}
+                                </div>
+                            </td>
+                        </tr>`;
+                });
+
+                document.getElementById('totalSavingsDisplay').innerText = `Rs. ${totalSavings.toLocaleString()}`;
+                document.getElementById('orderCountDisplay').innerText = dispatchedCount;
+                lucide.createIcons();
+            });
+        }
+
+        // Update Header Stats
+        function updateUIStats() {
+            document.getElementById('budgetUsedDisplay').innerText = `Rs. ${monthlySpent.toLocaleString()} / ${roleBudget.toLocaleString()}`;
+            
+            const percent = roleBudget > 0 ? (monthlySpent / roleBudget) * 100 : 0;
+            const bar = document.getElementById('budgetBar');
+            bar.style.width = Math.min(percent, 100) + "%";
+            
+            if(percent > 90) bar.className = "bg-red-500 h-full transition-all duration-1000";
+            else bar.className = "bg-[#059669] h-full transition-all duration-1000";
+        }
+
+        // Invoice Generator
         window.downloadDispatchedInvoice = async (orderId) => {
             const orderRef = doc(db, "orders", orderId);
             const snap = await getDoc(orderRef);
             if (!snap.exists()) return;
-            
             const order = snap.data();
             const dispatchedItems = order.items.filter(i => i.status === "Dispatched" || i.status === "Completed");
-
+            
             const { jsPDF } = window.jspdf;
             const pdf = new jsPDF({ unit: 'mm', format: [100, 150] });
-
-            // Header Section
+            
             pdf.setFont("helvetica", "bold");
             pdf.setTextColor(5, 150, 105); 
             pdf.text("PMM WELFARE RECEIPT", 50, 15, { align: "center" });
-
+            
             pdf.setTextColor(0, 0, 0); pdf.setFontSize(9);
             pdf.text(`Order No: #${order.orderNo || orderId.substring(0,8)}`, 10, 30);
             pdf.text(`Staff: ${order.staffName}`, 10, 36);
             pdf.text(`Date: ${new Date().toLocaleDateString()}`, 10, 42);
-
             pdf.line(10, 46, 90, 46);
+            
             let y = 54;
-            let dispatchedTotal = 0;
-            let dispatchedSavings = 0;
-
-            // Items List in PDF
+            let dTotal = 0; let dSavings = 0;
             dispatchedItems.forEach(item => {
                 const subTotal = item.welfarePrice * item.qty;
-                dispatchedTotal += subTotal;
-                dispatchedSavings += ((item.mrpPrice - item.welfarePrice) * item.qty);
-
-                pdf.setFontSize(8);
-                pdf.setFont("helvetica", "bold");
+                dTotal += subTotal;
+                dSavings += ((item.mrpPrice - item.welfarePrice) * item.qty);
+                pdf.setFontSize(8); pdf.setFont("helvetica", "bold");
                 pdf.text(`${item.name} (x${item.qty})`, 10, y);
-                
-                pdf.setFont("helvetica", "normal");
-                pdf.setFontSize(7);
+                pdf.setFont("helvetica", "normal"); pdf.setFontSize(7);
                 pdf.text(`${item.qty} x Rs. ${item.welfarePrice.toLocaleString()}`, 10, y + 4);
-                
-                pdf.setFontSize(8);
-                pdf.text(`Rs. ${subTotal.toLocaleString()}`, 90, y, { align: "right" });
+                pdf.setFontSize(8); pdf.text(`Rs. ${subTotal.toLocaleString()}`, 90, y, { align: "right" });
                 y += 10;
             });
-
             pdf.line(10, y, 90, y);
-            pdf.setFont("helvetica", "bold");
-            pdf.setFontSize(10);
-            pdf.text(`TOTAL PAID: Rs. ${dispatchedTotal.toLocaleString()}`, 10, y + 8);
-            
-            pdf.setTextColor(5, 150, 105);
-            pdf.setFontSize(9);
-            pdf.text(`Welfare Savings: Rs. ${dispatchedSavings.toLocaleString()}`, 10, y + 14);
-
-            pdf.setFontSize(7);
-            pdf.setTextColor(150, 150, 150);
-            pdf.text("Thank you for using PMM Welfare Service!", 50, 140, { align: "center" });
-
+            pdf.setFont("helvetica", "bold"); pdf.setFontSize(10);
+            pdf.text(`TOTAL PAID: Rs. ${dTotal.toLocaleString()}`, 10, y + 8);
+            pdf.setTextColor(5, 150, 105); pdf.text(`Welfare Savings: Rs. ${dSavings.toLocaleString()}`, 10, y + 14);
             pdf.save(`Receipt_${order.orderNo || orderId.substring(0,5)}.pdf`);
         };
 
-        
-       window.cancelOrderPack = async (orderId) => {
-    if (!confirm(`Are you sure you want to cancel this entire pack? Stock will be restored.`)) return;
+window.cancelOrderPack = async (orderId) => {
+    if (!confirm(`මෙම ඕඩර් එක කැන්සල් කිරීමට අවශ්‍යද? බඩු ප්‍රමාණය ස්ටොක් එකෙන් අඩු වී මේන් වෙයාර් හවුස් වෙත යොමු කෙරේ.`)) return;
     
     try {
         const orderRef = doc(db, "orders", orderId);
         const orderSnap = await getDoc(orderRef);
         const orderData = orderSnap.data();
 
-        // 1. මුලින්ම Order Status එක Cancelled කරනවා
+        // 1. Order Status එක Cancelled ලෙස සලකුණු කිරීම
         await updateDoc(orderRef, { status: "Cancelled" });
 
-        // 2. පැක් එකේ තියෙන හැම අයිටම් එකක්ම ලූප් එකක් හරහා ස්ටොක් එකට එකතු කරනවා
+        // 2. එක් එක් අයිතමය ස්ටොක් එකෙන් අඩු කිරීම (Subtracting from stock)
         for (const item of orderData.items) {
             const itemRef = doc(db, "items", item.itemId);
             
-            // ස්ටොක් එක වැඩි කරනවා
-            await updateDoc(itemRef, { stock: increment(item.qty) });
+            // ස්ටොක් එකෙන් අදාළ ප්‍රමාණය අඩු කරනවා (-item.qty)
+           await updateDoc(itemRef, { stock: increment(item.qty) });
 
-            // **වැදගත්ම කොටස**: ස්ටොක් එක අප්ඩේට් වුණාට පස්සේ අලුත් බැලන්ස් එක ගන්නවා
+            // අලුත් බැලන්ස් එක ලබා ගැනීම
             const updatedSnap = await getDoc(itemRef);
             const currentBalance = updatedSnap.exists() ? updatedSnap.data().stock : 0;
 
-            // 3. Bin Card එකට (inventory_logs) දත්ත ඇතුළත් කරනවා
             await addDoc(collection(db, "inventory_logs"), {
                 itemId: item.itemId,
                 itemName: item.name,
-                type: "RETURN", // ටයිප් එක රිටර්න් ලෙස
+                type: "RETURN", // මෙතන "OUT" වෙනුවට "RETURN" ලෙස වෙනස් කළා
                 qty: item.qty,
-                balance: currentBalance, // දැන් මෙතනට Err වෙනුවට නිවැරදි අගය වැටෙනවා
-                processedBy: "Staff (Auto-Cancel)",
+                balance: currentBalance,
+                processedBy: "Staff (Cancel-To-Warehouse)",
                 createdAt: new Date(),
-                orderNo: orderData.orderNo || "N/A", // බින් කාඩ් එකේ පෙන්වීමට ඕඩර් නම්බර් එක
-                note: `Order #${orderData.orderNo} was cancelled by user.`
+                orderNo: orderData.orderNo || "N/A",
+                note: `Order #${orderData.orderNo} cancelled. Sent back to Main Warehouse.`
             });
         }
-        alert("Order Pack cancelled and stock restored successfully!");
+        alert("ඕඩර් එක කැන්සල් කළා සහ ස්ටොක් එකෙන් අඩු කර මේන් වෙයාර් හවුස් එකට යැව්වා.");
     } catch (e) { 
         alert("Cancellation Error: " + e.message); 
     }
 };
-        loadMyOrders();
-        lucide.createIcons();
+
+        // Initialize listeners
+        listenToBudget();
+        listenToMonthlySpent();
+        listenToOrderHistory();
+
     </script>
 </body>
 </html>
